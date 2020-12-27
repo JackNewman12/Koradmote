@@ -12,16 +12,14 @@ import AppBar from '@material-ui/core/AppBar';
 import { Toolbar } from '@material-ui/core';
 import './App.css';
 
-function createData(name, calories, fat, carbs, protein) {
-  return { name, calories, fat, carbs, protein };
+function createData(name, voltage, current, state) {
+  return { name, voltage, current, state };
 }
 
 const rows = [
-  createData('Frozen yoghurt', 159, 6.0, 24, 4.0),
-  createData('Ice cream sandwich', 237, 9.0, 37, 4.3),
-  createData('Eclair', 262, 16.0, 24, 6.0),
-  createData('Cupcake', 305, 3.7, 67, 4.3),
-  createData('Gingerbread', 356, 16.0, 49, 3.9),
+  createData('Device1', 12.1, 1.2, true),
+  createData('Device2', 12.2, 1.6, false),
+  createData('Device3', 12.3, 1.3, true),
 ];
 
 function PowerButton(props) {
@@ -31,8 +29,13 @@ function PowerButton(props) {
   let Clicked = () => {
     setisDisabled(true);
     console.log(`Toggling ${props.DevName}`);
-    setTimeout(() => { setisDisabled(false); setisPowered(!isPowered)}, 2000);
+    setTimeout(HandleClickData, 2000);
   };
+
+  let HandleClickData = () => {
+    setisDisabled(false);
+    setisPowered(!isPowered);
+  }
 
   return <Button variant="contained" style={{backgroundColor:isPowered? "green":"red"}} disabled={isDisabled} onClick={Clicked} >
     {isDisabled ? "Loading" : (isPowered ? "On" : "Off")}</Button>
@@ -56,11 +59,9 @@ function App() {
         <Table className={"JackTest"} aria-label="simple table" style={{backgroundColor: "white" }}>
           <TableHead>
             <TableRow>
-              <TableCell style={{fontWeight:900}}>Dessert (100g serving)</TableCell>
-              <TableCell style={{fontWeight:900}}>Calories</TableCell>
-              <TableCell style={{fontWeight:900}}>Fat&nbsp;(g)</TableCell>
-              <TableCell style={{fontWeight:900}}>Carbs&nbsp;(g)</TableCell>
-              <TableCell style={{fontWeight:900}}>Protein&nbsp;(g)</TableCell>
+              <TableCell style={{fontWeight:900}}>Name</TableCell>
+              <TableCell style={{fontWeight:900}}>Voltage</TableCell>
+              <TableCell style={{fontWeight:900}}>Current</TableCell>
               <TableCell style={{fontWeight:900}}>Toggle Power</TableCell>
             </TableRow>
           </TableHead>
@@ -70,11 +71,9 @@ function App() {
                 <TableCell component="th" scope="row">
                   {row.name}
                 </TableCell>
-                <TableCell>{row.calories}</TableCell>
-                <TableCell>{row.fat}</TableCell>
-                <TableCell>{row.carbs}</TableCell>
-                <TableCell>{row.protein}</TableCell>
-                <TableCell><PowerButton DevName={row.name} PowerState={false}></PowerButton></TableCell>
+                <TableCell>{row.voltage}</TableCell>
+                <TableCell>{row.current}</TableCell>
+                <TableCell><PowerButton DevName={row.name} PowerState={row.state}></PowerButton></TableCell>
               </TableRow>
             ))}
           </TableBody>
