@@ -5,22 +5,18 @@ import TableBody from '@material-ui/core/TableBody';
 import TableCell from '@material-ui/core/TableCell';
 import TableHead from '@material-ui/core/TableHead';
 import TableRow from '@material-ui/core/TableRow';
+import TableContainer from '@material-ui/core/TableContainer';
+import Paper from '@material-ui/core/Paper';
 import Fab from '@material-ui/core/Fab';
 import RefreshIcon from '@material-ui/icons/Refresh';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import AppBar from '@material-ui/core/AppBar';
-import { Toolbar } from '@material-ui/core';
+import { CircularProgress, Toolbar } from '@material-ui/core';
 import './App.css';
 
 function createData(name, voltage, current, state) {
   return { name, voltage, current, state };
 }
-
-const rows = [
-  createData('Device1', 12.1, 1.2, true),
-  createData('Device2', 12.2, 1.6, false),
-  createData('Device3', 12.3, 1.3, true),
-];
 
 function PowerButton(props) {
   let [isDisabled, setisDisabled] = useState(false);
@@ -43,20 +39,48 @@ function PowerButton(props) {
 
 function App() {
 
+  let [rows, setrowsdata] = useState([]);
+  let [pendingData, setpendingData] = useState(false);
+
+  function updateData(myRows) {
+    setrowsdata(myRows);
+    setpendingData(false);
+  }
+
+  function requestUpdate() {
+    setpendingData(true);
+    const myRows = [
+      createData('Device1', Math.random() + 11.5, Math.random(), true),
+      createData('Device2', Math.random() + 11.5, Math.random(), false),
+      createData('Device3', Math.random() + 11.5, Math.random(), true),
+    ];
+    
+    setTimeout(() => {updateData(myRows)}, 400);
+  }
+
+  useEffect(() => {
+    requestUpdate();
+    const interval = setInterval(requestUpdate, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div className="App">
       <AppBar >
         <Toolbar >
           <img src={logo} className="App-logo" alt="logo" height={40} />
           Power Supply Thingo
-          <Fab color="secondary" aria-label="add" style={{ margin: 0, right: 20, position: 'fixed' }}>
+          {pendingData && <CircularProgress disableShrink color="secondary" style={{"margin-left":"10px"}}/>}
+          {/* <Fab color="secondary" aria-label="add" style={{ margin: 0, right: 20, position: 'fixed' }}
+          onClick={updateData}>
             <RefreshIcon />
-          </Fab>
+          </Fab> */}
         </Toolbar>
       </AppBar>
       <Toolbar />
-      <div>
-        <Table className={"JackTest"} aria-label="simple table" style={{backgroundColor: "white" }}>
+      <div className="Table">
+      <TableContainer component={Paper}>
+        <Table className={"JackTest"} aria-label="simple table">
           <TableHead>
             <TableRow>
               <TableCell style={{fontWeight:900}}>Name</TableCell>
@@ -71,14 +95,15 @@ function App() {
                 <TableCell component="th" scope="row">
                   {row.name}
                 </TableCell>
-                <TableCell>{row.voltage}</TableCell>
-                <TableCell>{row.current}</TableCell>
+                <TableCell>{row.voltage.toFixed(2)}</TableCell>
+                <TableCell>{row.current.toFixed(2)}</TableCell>
                 <TableCell><PowerButton DevName={row.name} PowerState={row.state}></PowerButton></TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
-      </div>
+        </TableContainer>
+        </div>
     </div>
   );
 }

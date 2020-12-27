@@ -4,6 +4,14 @@
   }
 }
 
+body {
+  background: lightgrey;
+}
+.App {
+  /* width: max-content; */
+  margin: auto;
+}
+
 @keyframes App-logo-spin {
   from {
     transform: rotate(0deg);
