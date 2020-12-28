@@ -10,3 +10,4 @@ edition = "2018"
 rocket = "0.4.6"
 rocket_contrib = "0.4.6"
 serde = {version = "1.0.117", features = ["derive"]}
+serialport = "4.0.0"

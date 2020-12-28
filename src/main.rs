@@ -3,60 +3,85 @@
 extern crate rocket;
 extern crate rocket_contrib;
 
-use std::sync::Mutex;
 use std::collections::HashMap;
-
-use serde::Serialize;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use rocket::State;
 use rocket_contrib::json::Json;
 use rocket_contrib::serve::StaticFiles;
+use serde::Serialize;
+use serialport::SerialPort;
 
-#[derive(Serialize, Clone, Default)]
+#[derive(Serialize, Clone, Copy, Default)]
 struct DeviceState {
     // voltage: u32,
     // current: u32,
-    power: bool,
+    power: u32,
 }
 
-#[derive(Serialize, Clone, Default)]
 struct Device {
-    connection: String, // TODO will be some sort of Serial device type
+    connection: Box<dyn SerialPort>,
     state: DeviceState,
 }
 
-type DeviceList = Mutex<HashMap<String, Device>>;
+type DeviceList = Arc<Mutex<HashMap<String, Device>>>;
 
 #[get("/")]
-fn devices(devs: State<DeviceList>) -> Json<Vec<DeviceState>> {
+fn devices(devs: State<DeviceList>) -> Json<HashMap<String, DeviceState>> {
     let data = devs.lock().unwrap();
-    Json(data.clone().into_iter().map(|(k, d)| d.state).collect())
+    Json(data.iter().map(|(k, d)| (k.clone(), d.state)).collect())
 }
 
 #[get("/<name>")]
-fn device(name: String, devs: State<DeviceList>) -> Json<Device> {
+fn device(name: String, devs: State<DeviceList>) -> Option<Json<DeviceState>> {
     let data = devs.lock().unwrap();
-    Json(data.get(&name).unwrap().clone())
+    Some(Json(data.get(&name)?.state))
     // Json(Device{name:name, state:true})
 }
 
 #[get("/<name>/toggle/<state>")]
-fn toggledevice(name: String, state: bool) -> Json<Device> {
-    // Json(Device{name:name, state:state})
+fn toggledevice(name: String, state: bool, devs: State<DeviceList>) -> Json<DeviceState> {
+    // TODO Perform a write and check if PSU change was success
     Json(Default::default())
+}
+
+fn update_device_states(devs: DeviceList) {
+    let mut Count = 0u32;
+    loop {
+        std::thread::sleep(std::time::Duration::from_secs(1));
+        {
+            for (_, d) in devs.lock().unwrap().iter_mut() {
+                d.connection.write(b"SomeStuff");
+                // TODO - Read some stuff
+                d.state.power = Count;
+            }
+            Count += 1;
+        }
+    }
 }
 
 fn main() {
     let rocket = rocket::ignite()
-    .mount("/device", routes![devices, device, toggledevice])
-    .mount("/", StaticFiles::from("build/"))
-    .manage(DeviceList::new(HashMap::new()));
+        .mount("/device", routes![devices, device, toggledevice])
+        .mount("/", StaticFiles::from("build/"))
+        .manage(DeviceList::new(Mutex::new(HashMap::new())));
 
     let current_devices = rocket.state::<DeviceList>().unwrap();
     {
-    let mut devlist = current_devices.lock().unwrap();
-    devlist.insert("One".to_string(), Device{..Default::default()});
+        let mut devlist = current_devices.lock().unwrap();
+        devlist.insert(
+            "One".to_string(),
+            Device {
+                connection: serialport::new("/dev/pts/2", 115200).open().unwrap(),
+                state: Default::default(),
+            },
+        );
     }
 
+    let DevArc = current_devices.clone();
+    std::thread::spawn(move || update_device_states(DevArc));
     rocket.launch();
+
+    println!("End!");
 }
