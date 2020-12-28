@@ -35,8 +35,12 @@ function PowerButton(props) {
     setisPowered(props.PowerState);
   }, [props]);
 
-  return <Button variant="contained" style={{ backgroundColor: isPowered ? "green" : "red" }} disabled={isDisabled} onClick={Clicked} >
-    {isDisabled ? "Loading" : (isPowered ? "On" : "Off")}</Button>
+  return <Button variant="contained"
+    style={{ backgroundColor: isPowered ? "limegreen" : "red" }}
+    disabled={isDisabled}
+    onClick={Clicked} >
+    {isPowered ? "On" : "Off"}
+  </Button>
 }
 
 function App() {
@@ -89,7 +93,7 @@ function App() {
                 <TableCell style={{ fontWeight: 900 }}>Name</TableCell>
                 <TableCell style={{ fontWeight: 900 }}>Voltage</TableCell>
                 <TableCell style={{ fontWeight: 900 }}>Current</TableCell>
-                <TableCell style={{ fontWeight: 900 }}>Toggle Power</TableCell>
+                <TableCell style={{ fontWeight: 900 }}>Current State</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
