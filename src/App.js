@@ -7,8 +7,6 @@ import TableHead from '@material-ui/core/TableHead';
 import TableRow from '@material-ui/core/TableRow';
 import TableContainer from '@material-ui/core/TableContainer';
 import Paper from '@material-ui/core/Paper';
-import Fab from '@material-ui/core/Fab';
-import RefreshIcon from '@material-ui/icons/Refresh';
 import { useState, useEffect } from 'react';
 import AppBar from '@material-ui/core/AppBar';
 import { CircularProgress, Toolbar } from '@material-ui/core';
@@ -25,7 +23,7 @@ function PowerButton(props) {
   let Clicked = () => {
     setisDisabled(true);
     console.log(`Toggling ${props.DevName}`);
-    setTimeout(HandleClickData, 2000);
+    setTimeout(HandleClickData, 300);
   };
 
   let HandleClickData = () => {
@@ -33,7 +31,11 @@ function PowerButton(props) {
     setisPowered(!isPowered);
   }
 
-  return <Button variant="contained" style={{backgroundColor:isPowered? "green":"red"}} disabled={isDisabled} onClick={Clicked} >
+  useEffect(() => {
+    setisPowered(props.PowerState);
+  }, [props]);
+
+  return <Button variant="contained" style={{ backgroundColor: isPowered ? "green" : "red" }} disabled={isDisabled} onClick={Clicked} >
     {isDisabled ? "Loading" : (isPowered ? "On" : "Off")}</Button>
 }
 
@@ -47,20 +49,21 @@ function App() {
     setpendingData(false);
   }
 
-  function requestUpdate() {
-    setpendingData(true);
-    const myRows = [
-      createData('Device1', Math.random() + 11.5, Math.random(), true),
-      createData('Device2', Math.random() + 11.5, Math.random(), false),
-      createData('Device3', Math.random() + 11.5, Math.random(), true),
-    ];
-    
-    setTimeout(() => {updateData(myRows)}, 400);
-  }
-
   useEffect(() => {
+
+    function requestUpdate() {
+      setpendingData(true);
+      const myRows = [
+        createData('Device1', Math.random() + 11.5, Math.random(), Math.random() > 0.5),
+        createData('Device2', Math.random() + 11.5, Math.random(), false),
+        createData('Device3', Math.random() + 11.5, Math.random(), true),
+      ];
+
+      setTimeout(() => { updateData(myRows) }, 400);
+    }
+
     requestUpdate();
-    const interval = setInterval(requestUpdate, 1000);
+    const interval = setInterval(requestUpdate, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -70,7 +73,7 @@ function App() {
         <Toolbar >
           <img src={logo} className="App-logo" alt="logo" height={40} />
           Power Supply Thingo
-          {pendingData && <CircularProgress disableShrink color="secondary" style={{"margin-left":"10px"}}/>}
+          {pendingData && <CircularProgress disableShrink color="secondary" style={{ "marginLeft": "10px" }} />}
           {/* <Fab color="secondary" aria-label="add" style={{ margin: 0, right: 20, position: 'fixed' }}
           onClick={updateData}>
             <RefreshIcon />
@@ -79,31 +82,31 @@ function App() {
       </AppBar>
       <Toolbar />
       <div className="Table">
-      <TableContainer component={Paper}>
-        <Table className={"JackTest"} aria-label="simple table">
-          <TableHead>
-            <TableRow>
-              <TableCell style={{fontWeight:900}}>Name</TableCell>
-              <TableCell style={{fontWeight:900}}>Voltage</TableCell>
-              <TableCell style={{fontWeight:900}}>Current</TableCell>
-              <TableCell style={{fontWeight:900}}>Toggle Power</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.name}>
-                <TableCell component="th" scope="row">
-                  {row.name}
-                </TableCell>
-                <TableCell>{row.voltage.toFixed(2)}</TableCell>
-                <TableCell>{row.current.toFixed(2)}</TableCell>
-                <TableCell><PowerButton DevName={row.name} PowerState={row.state}></PowerButton></TableCell>
+        <TableContainer component={Paper}>
+          <Table className={"JackTest"} aria-label="simple table">
+            <TableHead>
+              <TableRow>
+                <TableCell style={{ fontWeight: 900 }}>Name</TableCell>
+                <TableCell style={{ fontWeight: 900 }}>Voltage</TableCell>
+                <TableCell style={{ fontWeight: 900 }}>Current</TableCell>
+                <TableCell style={{ fontWeight: 900 }}>Toggle Power</TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHead>
+            <TableBody>
+              {rows.map((row) => (
+                <TableRow key={row.name}>
+                  <TableCell component="th" scope="row">
+                    {row.name}
+                  </TableCell>
+                  <TableCell>{row.voltage.toFixed(2)}</TableCell>
+                  <TableCell>{row.current.toFixed(2)}</TableCell>
+                  <TableCell><PowerButton DevName={row.name} PowerState={row.state}></PowerButton></TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </TableContainer>
-        </div>
+      </div>
     </div>
   );
 }
