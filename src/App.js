@@ -12,58 +12,62 @@ import AppBar from '@material-ui/core/AppBar';
 import { CircularProgress, Toolbar } from '@material-ui/core';
 import './App.css';
 
+// Make debugging between node and rust server easier
+const API_URL = "http://localhost:8000/"
+
 function PowerButton(props) {
   let [isDisabled, setisDisabled] = useState(false);
-  let [isPowered, setisPowered] = useState(props.PowerState);
 
   let Clicked = () => {
     setisDisabled(true);
     console.log(`Toggling ${props.DevName}`);
 
-    fetch(`device/${props.DevName}/toggle`)
+    fetch(`${API_URL}device/${props.DevName}/toggle`)
       .then(z => z.json())
       .then(data => {
-        setisPowered(data.power);
+        props.updateData({[props.DevName]:data});
         setisDisabled(false);
       });
 
   };
+
   useEffect(() => {
-    setisPowered(props.PowerState);
-    setisDisabled(false);
-  }, [props.PowerState]);
+    setisDisabled(false); 
+  }, [props]);
 
   return <Button variant="contained"
-    style={{ backgroundColor: isPowered ? "limegreen" : "red" }}
+    style={{ backgroundColor: props.PowerState ? "limegreen" : "red" }}
     disabled={isDisabled}
     onClick={Clicked} >
-    {isPowered ? "On" : "Off"}
+    {props.PowerState ? "On" : "Off"}
   </Button>
 }
 
 function App() {
 
-  let [rows, setrowsdata] = useState([]);
+  let [rows, setrowsdata] = useState({});
   let [pendingData, setpendingData] = useState(false);
 
   function updateData(myRows) {
-    console.log(myRows);
-    setrowsdata(myRows);
-    setpendingData(false);
+    setrowsdata(Object.assign({}, rows, myRows));
   }
 
+  function requestUpdate() {
+    setpendingData(true);
+    
+    fetch(`${API_URL}device`)
+    .then(z => z.json())
+    .then(data => updateData(data));
+    
+    setpendingData(false);
+  }
+  
   useEffect(() => {
-    function requestUpdate() {
-      setpendingData(true);
-
-      fetch("device")
-        .then(z => z.json())
-        .then(data => updateData(data));
-    }
-
     requestUpdate();
     const interval = setInterval(requestUpdate, 1000);
     return () => clearInterval(interval);
+  // Only care about DidMount so ignore warning about deps. This will never be called again
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -74,8 +78,8 @@ function App() {
           Power Supply Thingo
           {pendingData && <CircularProgress disableShrink color="secondary" style={{ "marginLeft": "10px" }} />}
           {/* <Fab color="secondary" aria-label="add" style={{ margin: 0, right: 20, position: 'fixed' }}
-          onClick={updateData}>
-            <RefreshIcon />
+          onClick={requestUpdate}>
+            { <RefreshIcon /> }
           </Fab> */}
         </Toolbar>
       </AppBar>
@@ -98,7 +102,7 @@ function App() {
                     <TableCell component="th" scope="row">{key}</TableCell>
                     <TableCell>{value.voltage.toFixed(2)}</TableCell>
                     <TableCell>{value.current.toFixed(2)}</TableCell>
-                    <TableCell><PowerButton DevName={key} PowerState={value.power}></PowerButton></TableCell>
+                    <TableCell><PowerButton DevName={key} PowerState={value.power} updateData={updateData}></PowerButton></TableCell>
                   </TableRow>
                 )}
             </TableBody>
