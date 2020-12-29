@@ -19,18 +19,19 @@ function PowerButton(props) {
   let Clicked = () => {
     setisDisabled(true);
     console.log(`Toggling ${props.DevName}`);
-    
-    fetch(`http://localhost:8000/device/${props.DevName}/toggle/${!isPowered}`)
-    .then(z => z.json())
-    .then(data => {
-      setisPowered(data.state);
-      setisDisabled(false); 
-    });
+
+    fetch(`device/${props.DevName}/toggle/${!isPowered}`)
+      .then(z => z.json())
+      .then(data => {
+        setisPowered(data.power);
+        setisDisabled(false);
+      });
 
   };
   useEffect(() => {
     setisPowered(props.PowerState);
-  }, [props]);
+    setisDisabled(false);
+  }, [props.PowerState]);
 
   return <Button variant="contained"
     style={{ backgroundColor: isPowered ? "limegreen" : "red" }}
@@ -46,6 +47,7 @@ function App() {
   let [pendingData, setpendingData] = useState(false);
 
   function updateData(myRows) {
+    console.log(myRows);
     setrowsdata(myRows);
     setpendingData(false);
   }
@@ -54,13 +56,13 @@ function App() {
     function requestUpdate() {
       setpendingData(true);
 
-      fetch("http://localhost:8000/device")
+      fetch("device")
         .then(z => z.json())
         .then(data => updateData(data));
     }
 
     requestUpdate();
-    const interval = setInterval(requestUpdate, 5000);
+    const interval = setInterval(requestUpdate, 1000);
     return () => clearInterval(interval);
   }, []);
 
@@ -91,14 +93,14 @@ function App() {
             </TableHead>
             <TableBody>
               {
-                Object.entries(rows).map( ([key, value]) => 
+                Object.entries(rows).map(([key, value]) =>
                   <TableRow key={key}>
                     <TableCell component="th" scope="row">{key}</TableCell>
                     <TableCell>{value.voltage.toFixed(2)}</TableCell>
                     <TableCell>{value.current.toFixed(2)}</TableCell>
-                    <TableCell><PowerButton DevName={key} PowerState={value.state}></PowerButton></TableCell>
+                    <TableCell><PowerButton DevName={key} PowerState={value.power}></PowerButton></TableCell>
                   </TableRow>
-            )}
+                )}
             </TableBody>
           </Table>
         </TableContainer>

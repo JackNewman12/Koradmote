@@ -3,8 +3,8 @@
 extern crate rocket;
 extern crate rocket_contrib;
 
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use std::{collections::BTreeMap, println};
 
 use rocket::State;
 use rocket_contrib::json::Json;
@@ -12,7 +12,7 @@ use rocket_contrib::serve::StaticFiles;
 use serde::Serialize;
 use serialport::SerialPort;
 
-#[derive(Serialize, Clone, Copy, Default)]
+#[derive(Serialize, Clone, Copy, Default, Debug)]
 struct DeviceState {
     voltage: u32,
     current: u32,
@@ -25,26 +25,25 @@ struct Device {
 }
 
 impl Device {
-    fn get_state(&mut self) {
-        let mut buf:[u8; 10] = [0; 10];
+    fn update_state(&mut self) {
+        let mut buf: [u8; 10] = [0; 10];
         self.connection.write(b"SomeStuff").expect("Wrote to PSU");
         // self.connection.read(&mut buf).expect("PSU returned data");
         // TODO - Decode bytes and update state
-        self.state.power = false;
     }
     fn set_power(&mut self, output: bool) {
         // Do what the user asked
-        println!("Setting power to {:?}", output);
+        // println!("Setting power to {:?}", output);
         self.connection.write(b"SomeStuff").expect("Wrote to PSU");
         // Update state to reflect all changes
-        self.get_state();
+        self.update_state();
     }
 }
 
-type DeviceList = Arc<Mutex<HashMap<String, Device>>>;
+type DeviceList = Arc<Mutex<BTreeMap<String, Device>>>;
 
 #[get("/")]
-fn devices(devs: State<DeviceList>) -> Json<HashMap<String, DeviceState>> {
+fn devices(devs: State<DeviceList>) -> Json<BTreeMap<String, DeviceState>> {
     let data = devs.lock().unwrap();
     Json(data.iter().map(|(k, d)| (k.clone(), d.state)).collect())
 }
@@ -59,8 +58,9 @@ fn device(name: String, devs: State<DeviceList>) -> Option<Json<DeviceState>> {
 #[get("/<name>/toggle/<state>")]
 fn toggledevice(name: String, state: bool, devs: State<DeviceList>) -> Option<Json<DeviceState>> {
     let mut devlock = devs.lock().unwrap();
-    let dev = devlock.get_mut(&name)?;
+    let mut dev = devlock.get_mut(&name)?;
     dev.set_power(state);
+    dev.state.power = state; // FIXME just do this to simulate device
     Some(Json(dev.state))
 }
 
@@ -68,7 +68,7 @@ fn update_device_states(devs: DeviceList) {
     loop {
         std::thread::sleep(std::time::Duration::from_secs(1));
         for (_, d) in devs.lock().unwrap().iter_mut() {
-            d.get_state();
+            d.update_state();
         }
     }
 }
@@ -77,13 +77,20 @@ fn main() {
     let rocket = rocket::ignite()
         .mount("/device", routes![devices, device, toggledevice])
         .mount("/", StaticFiles::from("build/"))
-        .manage(DeviceList::new(Mutex::new(HashMap::new())));
+        .manage(DeviceList::new(Mutex::new(BTreeMap::new())));
 
     let current_devices = rocket.state::<DeviceList>().unwrap();
     {
         let mut devlist = current_devices.lock().unwrap();
         devlist.insert(
-            "One".to_string(),
+            "Zebra".to_string(),
+            Device {
+                connection: serialport::new("/dev/pts/2", 115200).open().unwrap(),
+                state: Default::default(),
+            },
+        );
+        devlist.insert(
+            "Alp".to_string(),
             Device {
                 connection: serialport::new("/dev/pts/2", 115200).open().unwrap(),
                 state: Default::default(),
