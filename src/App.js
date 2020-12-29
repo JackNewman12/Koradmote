@@ -20,7 +20,7 @@ function PowerButton(props) {
     setisDisabled(true);
     console.log(`Toggling ${props.DevName}`);
 
-    fetch(`device/${props.DevName}/toggle/${!isPowered}`)
+    fetch(`device/${props.DevName}/toggle`)
       .then(z => z.json())
       .then(data => {
         setisPowered(data.power);

@@ -12,6 +12,13 @@ use rocket_contrib::serve::StaticFiles;
 use serde::Serialize;
 use serialport::SerialPort;
 
+use rust_embed::RustEmbed;
+use rust_embed_rocket;
+
+#[derive(RustEmbed)]
+#[folder = "build/"]
+struct WebAssets;
+
 #[derive(Serialize, Clone, Copy, Default, Debug)]
 struct DeviceState {
     voltage: u32,
@@ -55,8 +62,19 @@ fn device(name: String, devs: State<DeviceList>) -> Option<Json<DeviceState>> {
     // Json(Device{name:name, state:true})
 }
 
+#[get("/<name>/toggle")]
+fn toggledevice(name: String, devs: State<DeviceList>) -> Option<Json<DeviceState>> {
+    let mut devlock = devs.lock().unwrap();
+    let mut dev = devlock.get_mut(&name)?;
+    // Make sure the state is up to date before we attempt to do the logic not
+    dev.update_state();
+    dev.set_power(!dev.state.power);
+    dev.state.power = !dev.state.power; // FIXME just do this to simulate device
+    Some(Json(dev.state))
+}
+
 #[get("/<name>/toggle/<state>")]
-fn toggledevice(name: String, state: bool, devs: State<DeviceList>) -> Option<Json<DeviceState>> {
+fn setdevice(name: String, state: bool, devs: State<DeviceList>) -> Option<Json<DeviceState>> {
     let mut devlock = devs.lock().unwrap();
     let mut dev = devlock.get_mut(&name)?;
     dev.set_power(state);
@@ -75,9 +93,19 @@ fn update_device_states(devs: DeviceList) {
 
 fn main() {
     let rocket = rocket::ignite()
-        .mount("/device", routes![devices, device, toggledevice])
-        .mount("/", StaticFiles::from("build/"))
-        .manage(DeviceList::new(Mutex::new(BTreeMap::new())));
+        .mount("/device", routes![devices, device, toggledevice, setdevice])
+        // .mount("/", StaticFiles::from("build/"))
+        .mount(
+            "/",
+            rust_embed_rocket::Server::from_config(
+                WebAssets,
+                rust_embed_rocket::Config {
+                    serve_index: true,
+                    ..Default::default()
+                },
+            ),
+        )
+        .manage(DeviceList::default());
 
     let current_devices = rocket.state::<DeviceList>().unwrap();
     {

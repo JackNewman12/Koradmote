@@ -11,3 +11,5 @@ rocket = "0.4.6"
 rocket_contrib = "0.4.6"
 serde = {version = "1.0.117", features = ["derive"]}
 serialport = "4.0.0"
+rust-embed = "5.7.0"
+rust-embed-rocket = {git = "https://github.com/peacememories/rust-embed-rocket"}
