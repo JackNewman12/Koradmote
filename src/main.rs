@@ -1,14 +1,12 @@
 #![feature(proc_macro_hygiene, decl_macro)]
 #[macro_use]
 extern crate rocket;
-extern crate rocket_contrib;
 
 use std::sync::{Arc, Mutex};
-use std::{collections::BTreeMap, println};
+use std::{collections::BTreeMap};
 
 use rocket::State;
 use rocket_contrib::json::Json;
-use rocket_contrib::serve::StaticFiles;
 use serde::Serialize;
 use serialport::SerialPort;
 
@@ -33,8 +31,8 @@ struct Device {
 
 impl Device {
     fn update_state(&mut self) {
-        let mut buf: [u8; 10] = [0; 10];
         self.connection.write(b"SomeStuff").expect("Wrote to PSU");
+        // let mut buf: [u8; 10] = [0; 10];
         // self.connection.read(&mut buf).expect("PSU returned data");
         // TODO - Decode bytes and update state
     }
@@ -44,6 +42,8 @@ impl Device {
         self.connection.write(b"SomeStuff").expect("Wrote to PSU");
         // Update state to reflect all changes
         self.update_state();
+        // FIXME just do this to simulate device
+        self.state.power = output; 
     }
 }
 
@@ -65,20 +65,18 @@ fn device(name: String, devs: State<DeviceList>) -> Option<Json<DeviceState>> {
 #[get("/<name>/toggle")]
 fn toggledevice(name: String, devs: State<DeviceList>) -> Option<Json<DeviceState>> {
     let mut devlock = devs.lock().unwrap();
-    let mut dev = devlock.get_mut(&name)?;
+    let dev = devlock.get_mut(&name)?;
     // Make sure the state is up to date before we attempt to do the logic not
     dev.update_state();
     dev.set_power(!dev.state.power);
-    dev.state.power = !dev.state.power; // FIXME just do this to simulate device
     Some(Json(dev.state))
 }
 
 #[get("/<name>/toggle/<state>")]
 fn setdevice(name: String, state: bool, devs: State<DeviceList>) -> Option<Json<DeviceState>> {
     let mut devlock = devs.lock().unwrap();
-    let mut dev = devlock.get_mut(&name)?;
+    let dev = devlock.get_mut(&name)?;
     dev.set_power(state);
-    dev.state.power = state; // FIXME just do this to simulate device
     Some(Json(dev.state))
 }
 
@@ -128,7 +126,7 @@ fn main() {
 
     let dev_arc = current_devices.clone();
     std::thread::spawn(move || update_device_states(dev_arc));
+    
+    // Start the rocket server. This blocks forever
     rocket.launch();
-
-    println!("End!");
 }
