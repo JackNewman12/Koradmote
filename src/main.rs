@@ -5,7 +5,6 @@ extern crate rocket_contrib;
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
 use rocket::State;
 use rocket_contrib::json::Json;
@@ -15,14 +14,31 @@ use serialport::SerialPort;
 
 #[derive(Serialize, Clone, Copy, Default)]
 struct DeviceState {
-    // voltage: u32,
-    // current: u32,
-    power: u32,
+    voltage: u32,
+    current: u32,
+    power: bool,
 }
 
 struct Device {
     connection: Box<dyn SerialPort>,
     state: DeviceState,
+}
+
+impl Device {
+    fn get_state(&mut self) {
+        let mut buf:[u8; 10] = [0; 10];
+        self.connection.write(b"SomeStuff").expect("Wrote to PSU");
+        // self.connection.read(&mut buf).expect("PSU returned data");
+        // TODO - Decode bytes and update state
+        self.state.power = false;
+    }
+    fn set_power(&mut self, output: bool) {
+        // Do what the user asked
+        println!("Setting power to {:?}", output);
+        self.connection.write(b"SomeStuff").expect("Wrote to PSU");
+        // Update state to reflect all changes
+        self.get_state();
+    }
 }
 
 type DeviceList = Arc<Mutex<HashMap<String, Device>>>;
@@ -41,22 +57,18 @@ fn device(name: String, devs: State<DeviceList>) -> Option<Json<DeviceState>> {
 }
 
 #[get("/<name>/toggle/<state>")]
-fn toggledevice(name: String, state: bool, devs: State<DeviceList>) -> Json<DeviceState> {
-    // TODO Perform a write and check if PSU change was success
-    Json(Default::default())
+fn toggledevice(name: String, state: bool, devs: State<DeviceList>) -> Option<Json<DeviceState>> {
+    let mut devlock = devs.lock().unwrap();
+    let dev = devlock.get_mut(&name)?;
+    dev.set_power(state);
+    Some(Json(dev.state))
 }
 
 fn update_device_states(devs: DeviceList) {
-    let mut Count = 0u32;
     loop {
         std::thread::sleep(std::time::Duration::from_secs(1));
-        {
-            for (_, d) in devs.lock().unwrap().iter_mut() {
-                d.connection.write(b"SomeStuff");
-                // TODO - Read some stuff
-                d.state.power = Count;
-            }
-            Count += 1;
+        for (_, d) in devs.lock().unwrap().iter_mut() {
+            d.get_state();
         }
     }
 }
@@ -79,8 +91,8 @@ fn main() {
         );
     }
 
-    let DevArc = current_devices.clone();
-    std::thread::spawn(move || update_device_states(DevArc));
+    let dev_arc = current_devices.clone();
+    std::thread::spawn(move || update_device_states(dev_arc));
     rocket.launch();
 
     println!("End!");
