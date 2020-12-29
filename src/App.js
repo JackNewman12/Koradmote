@@ -12,10 +12,6 @@ import AppBar from '@material-ui/core/AppBar';
 import { CircularProgress, Toolbar } from '@material-ui/core';
 import './App.css';
 
-function createData(name, voltage, current, state) {
-  return { name, voltage, current, state };
-}
-
 function PowerButton(props) {
   let [isDisabled, setisDisabled] = useState(false);
   let [isPowered, setisPowered] = useState(props.PowerState);
@@ -23,14 +19,15 @@ function PowerButton(props) {
   let Clicked = () => {
     setisDisabled(true);
     console.log(`Toggling ${props.DevName}`);
-    setTimeout(HandleClickData, 300);
+    
+    fetch(`http://localhost:8000/device/${props.DevName}/toggle/${!isPowered}`)
+    .then(z => z.json())
+    .then(data => {
+      setisPowered(data.state);
+      setisDisabled(false); 
+    });
+
   };
-
-  let HandleClickData = () => {
-    setisDisabled(false);
-    setisPowered(!isPowered);
-  }
-
   useEffect(() => {
     setisPowered(props.PowerState);
   }, [props]);
@@ -54,16 +51,12 @@ function App() {
   }
 
   useEffect(() => {
-
     function requestUpdate() {
       setpendingData(true);
-      const myRows = [
-        createData('Device1', Math.random() + 11.5, Math.random(), Math.random() > 0.5),
-        createData('Device2', Math.random() + 11.5, Math.random(), false),
-        createData('Device3', Math.random() + 11.5, Math.random(), true),
-      ];
 
-      setTimeout(() => { updateData(myRows) }, 400);
+      fetch("http://localhost:8000/device")
+        .then(z => z.json())
+        .then(data => updateData(data));
     }
 
     requestUpdate();
@@ -97,16 +90,15 @@ function App() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {rows.map((row) => (
-                <TableRow key={row.name}>
-                  <TableCell component="th" scope="row">
-                    {row.name}
-                  </TableCell>
-                  <TableCell>{row.voltage.toFixed(2)}</TableCell>
-                  <TableCell>{row.current.toFixed(2)}</TableCell>
-                  <TableCell><PowerButton DevName={row.name} PowerState={row.state}></PowerButton></TableCell>
-                </TableRow>
-              ))}
+              {
+                Object.entries(rows).map( ([key, value]) => 
+                  <TableRow key={key}>
+                    <TableCell component="th" scope="row">{key}</TableCell>
+                    <TableCell>{value.voltage.toFixed(2)}</TableCell>
+                    <TableCell>{value.current.toFixed(2)}</TableCell>
+                    <TableCell><PowerButton DevName={key} PowerState={value.state}></PowerButton></TableCell>
+                  </TableRow>
+            )}
             </TableBody>
           </Table>
         </TableContainer>
