@@ -16,3 +16,4 @@ serde = {version = "1.0.117", features = ["derive"]}
 serialport = "4.0.0"
 rust-embed = "5.7.0"
 rust-embed-rocket = {git = "https://github.com/peacememories/rust-embed-rocket"}
+clap = "3.0.0-beta.2"

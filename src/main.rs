@@ -2,8 +2,10 @@
 #[macro_use]
 extern crate rocket;
 
+use clap::Clap;
+
+use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
-use std::{collections::BTreeMap};
 
 use rocket::State;
 use rocket_contrib::json::Json;
@@ -43,7 +45,7 @@ impl Device {
         // Update state to reflect all changes
         self.update_state();
         // FIXME just do this to simulate device
-        self.state.power = output; 
+        self.state.power = output;
     }
 }
 
@@ -59,7 +61,6 @@ fn devices(devs: State<DeviceList>) -> Json<BTreeMap<String, DeviceState>> {
 fn device(name: String, devs: State<DeviceList>) -> Option<Json<DeviceState>> {
     let data = devs.lock().unwrap();
     Some(Json(data.get(&name)?.state))
-    // Json(Device{name:name, state:true})
 }
 
 #[get("/<name>/toggle")]
@@ -89,7 +90,24 @@ fn update_device_states(devs: DeviceList) {
     }
 }
 
+
+#[derive(Clap, Debug)]
+struct Opts {
+    /// List of power supples "Name" "Port" "Name" "Port"
+    #[clap(index(1), required(true))]
+    power_supplies: Vec<String>,
+    /// A level of verbosity, and can be used multiple times
+    #[clap(short, long, parse(from_occurrences))]
+    verbose: i32,
+}
+
 fn main() {
+
+    let opts: Opts = Opts::parse();
+    
+    // let power_supplies: Vec<(String, String)> = opts.power_supplies.chunks_exact(2).map(|[a,b]| (a,b)).collect();
+    println!("{:?}", opts);
+
     let rocket = rocket::ignite()
         .mount("/device", routes![devices, device, toggledevice, setdevice])
         // .mount("/", StaticFiles::from("build/"))
@@ -126,7 +144,7 @@ fn main() {
 
     let dev_arc = current_devices.clone();
     std::thread::spawn(move || update_device_states(dev_arc));
-    
+
     // Start the rocket server. This blocks forever
-    rocket.launch();
+    // rocket.launch();
 }
