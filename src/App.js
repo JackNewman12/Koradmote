@@ -25,14 +25,14 @@ function PowerButton(props) {
     fetch(`${API_URL}device/${props.DevName}/toggle`)
       .then(z => z.json())
       .then(data => {
-        props.updateData({[props.DevName]:data});
+        props.updateData({ [props.DevName]: data });
         setisDisabled(false);
       });
 
   };
 
   useEffect(() => {
-    setisDisabled(false); 
+    setisDisabled(false);
   }, [props]);
 
   return <Button variant="contained"
@@ -54,20 +54,19 @@ function App() {
 
   function requestUpdate() {
     setpendingData(true);
-    
+
     fetch(`${API_URL}device`)
-    .then(z => z.json())
-    .then(data => updateData(data));
-    
-    setpendingData(false);
+      .then(z => z.json())
+      .then(data => { updateData(data); setpendingData(false); })
+      .catch(err => { console.error(err); /* FIXME - How to handle? Error symbol */ });
   }
-  
+
   useEffect(() => {
     requestUpdate();
     const interval = setInterval(requestUpdate, 1000);
     return () => clearInterval(interval);
-  // Only care about DidMount so ignore warning about deps. This will never be called again
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Only care about DidMount so ignore warning about deps. This will never be called again
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

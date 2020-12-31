@@ -90,7 +90,6 @@ fn update_device_states(devs: DeviceList) {
     }
 }
 
-
 #[derive(Clap, Debug)]
 struct Opts {
     /// List of power supples "Name" "Port" "Name" "Port"
@@ -103,9 +102,8 @@ struct Opts {
 }
 
 fn main() {
-
     let opts: Opts = Opts::parse();
-    
+
     // println!("{:?}", opts);
     if opts.power_supplies.len() % 2 != 0 {
         eprintln!("Input devices must be groups of two!");
@@ -131,16 +129,21 @@ fn main() {
     {
         let mut devlist = current_devices.lock().unwrap();
         for chunk in opts.power_supplies.chunks_exact(2) {
-            let port = match serialport::new(chunk[1].clone(), 115200).open()
-            {
+            let port = match serialport::new(chunk[1].clone(), 115200).open() {
                 Ok(port) => port,
-                Err(e) => {eprintln!("Serial port failure: {}", e); return;}
+                Err(e) => {
+                    eprintln!("Serial port failure: {}", e);
+                    return;
+                }
             };
-    
-            devlist.insert(chunk[0].to_string(), Device{
-                connection: port,
-                state: Default::default()
-            });
+
+            devlist.insert(
+                chunk[0].to_string(),
+                Device {
+                    connection: port,
+                    state: Default::default(),
+                },
+            );
         }
     }
 
