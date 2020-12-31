@@ -11,6 +11,7 @@ import { useState, useEffect } from 'react';
 import AppBar from '@material-ui/core/AppBar';
 import { CircularProgress, Toolbar } from '@material-ui/core';
 import './App.css';
+import Alert from '@material-ui/lab/Alert';
 
 // Make debugging between node and rust server easier
 const API_URL = "http://localhost:8000/"
@@ -47,6 +48,7 @@ function App() {
 
   let [rows, setrowsdata] = useState({});
   let [pendingData, setpendingData] = useState(false);
+  let [wasFailure, setwasFailure] = useState(false);
 
   function updateData(myRows) {
     setrowsdata(Object.assign({}, rows, myRows));
@@ -57,8 +59,9 @@ function App() {
 
     fetch(`${API_URL}device`)
       .then(z => z.json())
-      .then(data => { updateData(data); setpendingData(false); })
-      .catch(err => { console.error(err); /* FIXME - How to handle? Error symbol */ });
+      .then(data => { updateData(data); setwasFailure(false) })
+      .catch(err => { console.error(err); setwasFailure(true) })
+      .then(() => { setpendingData(false) });
   }
 
   useEffect(() => {
@@ -72,10 +75,11 @@ function App() {
   return (
     <div className="App">
       <AppBar >
-        <Toolbar >
+        <Toolbar styles={{ gap: "10px" }}>
           <img src={logo} className="App-logo" alt="logo" height={40} />
           Power Supply Thingo
-          {pendingData && <CircularProgress disableShrink color="secondary" style={{ "marginLeft": "10px" }} />}
+          {wasFailure && <Alert variant="filled" severity="error">Last Update Request Failed</Alert>}
+          {pendingData && <CircularProgress disableShrink color="secondary" />}
           {/* <Fab color="secondary" aria-label="add" style={{ margin: 0, right: 20, position: 'fixed' }}
           onClick={requestUpdate}>
             { <RefreshIcon /> }
