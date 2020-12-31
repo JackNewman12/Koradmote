@@ -28,8 +28,11 @@ function PowerButton(props) {
       .then(data => {
         props.updateData({ [props.DevName]: data });
         setisDisabled(false);
+      })
+      .catch((err) => {
+        alert("Toggle PSU Failed");
+        console.error(err)
       });
-
   };
 
   useEffect(() => {
@@ -75,7 +78,7 @@ function App() {
   return (
     <div className="App">
       <AppBar >
-        <Toolbar styles={{ gap: "10px" }}>
+        <Toolbar style={{ gap: "10px" }}>
           <img src={logo} className="App-logo" alt="logo" height={40} />
           Power Supply Thingo
           {wasFailure && <Alert variant="filled" severity="error">Last Update Request Failed</Alert>}
