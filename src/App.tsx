@@ -16,7 +16,17 @@ import Alert from '@material-ui/lab/Alert';
 // Make debugging between node and rust server easier
 const API_URL = "http://localhost:8000/"
 
-function PowerButton(props) {
+interface DeviceState {
+  voltage: number,
+  current: number,
+  power: boolean,
+}
+
+interface DeviceMap {
+  [name: string]: DeviceState,
+}
+
+function PowerButton(props: { DevName: string; PowerState: boolean; updateData: (arg0: DeviceMap) => void }) {
   let [isDisabled, setisDisabled] = useState(false);
 
   let Clicked = () => {
@@ -25,7 +35,7 @@ function PowerButton(props) {
 
     fetch(`${API_URL}device/${props.DevName}/toggle`)
       .then(z => z.json())
-      .then(data => {
+      .then((data: DeviceState) => {
         props.updateData({ [props.DevName]: data });
         setisDisabled(false);
       })
@@ -49,11 +59,11 @@ function PowerButton(props) {
 
 function App() {
 
-  let [rows, setrowsdata] = useState({});
+  let [rows, setrowsdata] = useState<DeviceMap>({});
   let [pendingData, setpendingData] = useState(false);
   let [wasFailure, setwasFailure] = useState(false);
 
-  function updateData(myRows) {
+  function updateData(myRows: DeviceMap) {
     setrowsdata(Object.assign({}, rows, myRows));
   }
 
@@ -62,7 +72,7 @@ function App() {
 
     fetch(`${API_URL}device`)
       .then(z => z.json())
-      .then(data => { updateData(data); setwasFailure(false) })
+      .then((data: DeviceMap) => { updateData(data); setwasFailure(false) })
       .catch(err => { console.error(err); setwasFailure(true) })
       .then(() => { setpendingData(false) });
   }
