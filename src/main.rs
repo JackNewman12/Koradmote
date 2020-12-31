@@ -94,8 +94,9 @@ fn update_device_states(devs: DeviceList) {
 #[derive(Clap, Debug)]
 struct Opts {
     /// List of power supples "Name" "Port" "Name" "Port"
-    #[clap(index(1), required(true))]
+    #[clap(required(true))]
     power_supplies: Vec<String>,
+
     /// A level of verbosity, and can be used multiple times
     #[clap(short, long, parse(from_occurrences))]
     verbose: i32,
@@ -105,8 +106,11 @@ fn main() {
 
     let opts: Opts = Opts::parse();
     
-    // let power_supplies: Vec<(String, String)> = opts.power_supplies.chunks_exact(2).map(|[a,b]| (a,b)).collect();
-    println!("{:?}", opts);
+    // println!("{:?}", opts);
+    if opts.power_supplies.len() % 2 != 0 {
+        eprintln!("Input devices must be groups of two!");
+        return;
+    }
 
     let rocket = rocket::ignite()
         .mount("/device", routes![devices, device, toggledevice, setdevice])
@@ -126,25 +130,23 @@ fn main() {
     let current_devices = rocket.state::<DeviceList>().unwrap();
     {
         let mut devlist = current_devices.lock().unwrap();
-        devlist.insert(
-            "Zebra".to_string(),
-            Device {
-                connection: serialport::new("/dev/pts/2", 115200).open().unwrap(),
-                state: Default::default(),
-            },
-        );
-        devlist.insert(
-            "Alp".to_string(),
-            Device {
-                connection: serialport::new("/dev/pts/2", 115200).open().unwrap(),
-                state: Default::default(),
-            },
-        );
+        for chunk in opts.power_supplies.chunks_exact(2) {
+            let port = match serialport::new(chunk[1].clone(), 115200).open()
+            {
+                Ok(port) => port,
+                Err(e) => {eprintln!("Serial port failure: {}", e); return;}
+            };
+    
+            devlist.insert(chunk[0].to_string(), Device{
+                connection: port,
+                state: Default::default()
+            });
+        }
     }
 
     let dev_arc = current_devices.clone();
     std::thread::spawn(move || update_device_states(dev_arc));
 
     // Start the rocket server. This blocks forever
-    // rocket.launch();
+    rocket.launch();
 }
