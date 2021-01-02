@@ -21,8 +21,8 @@ struct WebAssets;
 
 #[derive(Serialize, Clone, Copy, Default, Debug)]
 struct DeviceState {
-    voltage: u32,
-    current: u32,
+    voltage: f32,
+    current: f32,
     power: bool,
 }
 
@@ -33,19 +33,26 @@ struct Device {
 
 impl Device {
     fn update_state(&mut self) {
-        self.connection.write(b"SomeStuff").expect("Wrote to PSU");
-        // let mut buf: [u8; 10] = [0; 10];
-        // self.connection.read(&mut buf).expect("PSU returned data");
-        // TODO - Decode bytes and update state
+        let res = ka3005p::status(self.connection.as_mut());
+        match res {
+            Ok(status) => {
+                self.state.voltage = status.voltage;
+                self.state.current = status.current;
+                self.state.power = status.flags.output.into();
+            },
+            Err(err) => println!("Update PSU failed! {}", err),
+        }
+        
     }
     fn set_power(&mut self, output: bool) {
         // Do what the user asked
-        // println!("Setting power to {:?}", output);
-        self.connection.write(b"SomeStuff").expect("Wrote to PSU");
+        println!("Setting power to {:?}", output);
+        ka3005p::execute(
+            self.connection.as_mut(), 
+            ka3005p::Command::Power(output.into()))
+            .unwrap_or_else(|err| println!("Sending Command Failed! {}", err));
         // Update state to reflect all changes
         self.update_state();
-        // FIXME just do this to simulate device
-        self.state.power = output;
     }
 }
 
