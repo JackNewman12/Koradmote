@@ -14,7 +14,8 @@ import './App.css';
 import Alert from '@material-ui/lab/Alert';
 
 // Make debugging between node and rust server easier
-const API_URL = "http://localhost:8000/"
+// const API_URL = "http://localhost:8000/"
+const API_URL = "" // For release
 
 interface DeviceState {
   voltage: number,
@@ -116,8 +117,8 @@ function App() {
                 Object.entries(rows).map(([key, value]) =>
                   <TableRow key={key}>
                     <TableCell component="th" scope="row">{key}</TableCell>
-                    <TableCell>{value.voltage.toFixed(2)}</TableCell>
-                    <TableCell>{value.current.toFixed(2)}</TableCell>
+                    <TableCell>{value.voltage.toFixed(3)}</TableCell>
+                    <TableCell>{value.current.toFixed(3)}</TableCell>
                     <TableCell><PowerButton DevName={key} PowerState={value.power} updateData={updateData}></PowerButton></TableCell>
                   </TableRow>
                 )}

@@ -10,7 +10,6 @@ use std::sync::{Arc, Mutex};
 use rocket::State;
 use rocket_contrib::json::Json;
 use serde::Serialize;
-use serialport::SerialPort;
 
 use rust_embed::RustEmbed;
 use rust_embed_rocket;
@@ -27,30 +26,28 @@ struct DeviceState {
 }
 
 struct Device {
-    connection: Box<dyn SerialPort>,
+    connection: ka3005p::Ka3005p,
     state: DeviceState,
 }
 
 impl Device {
     fn update_state(&mut self) {
-        let res = ka3005p::status(self.connection.as_mut());
+        let res = self.connection.status();
         match res {
             Ok(status) => {
+                // println!("{}", Json(status).to_string());
                 self.state.voltage = status.voltage;
                 self.state.current = status.current;
                 self.state.power = status.flags.output.into();
-            },
+            }
             Err(err) => println!("Update PSU failed! {}", err),
         }
-        
     }
     fn set_power(&mut self, output: bool) {
         // Do what the user asked
         println!("Setting power to {:?}", output);
-        ka3005p::execute(
-            self.connection.as_mut(), 
-            ka3005p::Command::Power(output.into()))
-            .unwrap_or_else(|err| println!("Sending Command Failed! {}", err));
+        self.connection.execute(ka3005p::Command::Power(output.into()))
+        .expect("Sending Command Failed! {}");
         // Update state to reflect all changes
         self.update_state();
     }
@@ -136,7 +133,8 @@ fn main() {
     {
         let mut devlist = current_devices.lock().unwrap();
         for chunk in opts.power_supplies.chunks_exact(2) {
-            let port = match serialport::new(chunk[1].clone(), 115200).open() {
+            let port = match ka3005p::Ka3005p::new(&chunk[1])
+            {
                 Ok(port) => port,
                 Err(e) => {
                     eprintln!("Serial port failure: {}", e);
