@@ -1,8 +1,10 @@
 #![feature(proc_macro_hygiene, decl_macro)]
+#![feature(async_closure)]
 #[macro_use]
 extern crate rocket;
 
 use clap::Clap;
+use futures::executor::block_on;
 
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
@@ -13,6 +15,9 @@ use serde::Serialize;
 
 use rust_embed::RustEmbed;
 use rust_embed_rocket;
+
+use tokio::{join, runtime};
+use tokio::task;
 
 #[derive(RustEmbed)]
 #[folder = "build/"]
@@ -31,8 +36,9 @@ struct Device {
 }
 
 impl Device {
-    fn update_state(&mut self) {
+    async fn update_state(&mut self) {
         let res = self.connection.status();
+        println!("wow");
         match res {
             Ok(status) => {
                 // println!("{}", Json(status).to_string());
@@ -46,10 +52,11 @@ impl Device {
     fn set_power(&mut self, output: bool) {
         // Do what the user asked
         println!("Setting power to {:?}", output);
-        self.connection.execute(ka3005p::Command::Power(output.into()))
-        .expect("Sending Command Failed! {}");
+        self.connection
+            .execute(ka3005p::Command::Power(output.into()))
+            .expect("Sending Command Failed! {}");
         // Update state to reflect all changes
-        self.update_state();
+        block_on(self.update_state());
     }
 }
 
@@ -72,7 +79,7 @@ fn toggledevice(name: String, devs: State<DeviceList>) -> Option<Json<DeviceStat
     let mut devlock = devs.lock().unwrap();
     let dev = devlock.get_mut(&name)?;
     // Make sure the state is up to date before we attempt to do the logic not
-    dev.update_state();
+    block_on(dev.update_state());
     dev.set_power(!dev.state.power);
     Some(Json(dev.state))
 }
@@ -86,12 +93,14 @@ fn setdevice(name: String, state: bool, devs: State<DeviceList>) -> Option<Json<
 }
 
 fn update_device_states(devs: DeviceList) {
-    loop {
-        std::thread::sleep(std::time::Duration::from_secs(1));
-        for (_, d) in devs.lock().unwrap().iter_mut() {
-            d.update_state();
+    let basic_rt = runtime::Builder::new_current_thread().build().expect("oh god");
+    
+        loop {
+            std::thread::sleep(std::time::Duration::from_secs(2));
+            println!("Start");
+            let mut uhh = devs.lock().unwrap();
+            let x:Vec<_> = uhh.values().map(|d| basic_rt.spawn(d.clone().update_state())).collect();
         }
-    }
 }
 
 #[derive(Clap, Debug)]
@@ -133,8 +142,7 @@ fn main() {
     {
         let mut devlist = current_devices.lock().unwrap();
         for chunk in opts.power_supplies.chunks_exact(2) {
-            let port = match ka3005p::Ka3005p::new(&chunk[1])
-            {
+            let port = match ka3005p::Ka3005p::new(&chunk[1]) {
                 Ok(port) => port,
                 Err(e) => {
                     eprintln!("Serial port failure: {}", e);
