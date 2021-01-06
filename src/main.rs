@@ -4,7 +4,7 @@
 extern crate rocket;
 
 use clap::Clap;
-use futures::executor::block_on;
+use futures::{executor::block_on, future::join_all};
 
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
@@ -16,8 +16,6 @@ use serde::Serialize;
 use rust_embed::RustEmbed;
 use rust_embed_rocket;
 
-use tokio::{join, runtime};
-use tokio::task;
 
 #[derive(RustEmbed)]
 #[folder = "build/"]
@@ -52,9 +50,8 @@ impl Device {
     fn set_power(&mut self, output: bool) {
         // Do what the user asked
         println!("Setting power to {:?}", output);
-        self.connection
-            .execute(ka3005p::Command::Power(output.into()))
-            .expect("Sending Command Failed! {}");
+        self.connection.execute(ka3005p::Command::Power(output.into()))
+        .expect("Sending Command Failed! {}");
         // Update state to reflect all changes
         block_on(self.update_state());
     }
@@ -93,14 +90,13 @@ fn setdevice(name: String, state: bool, devs: State<DeviceList>) -> Option<Json<
 }
 
 fn update_device_states(devs: DeviceList) {
-    let basic_rt = runtime::Builder::new_current_thread().build().expect("oh god");
-    
-        loop {
-            std::thread::sleep(std::time::Duration::from_secs(2));
-            println!("Start");
-            let mut uhh = devs.lock().unwrap();
-            let x:Vec<_> = uhh.values().map(|d| basic_rt.spawn(d.clone().update_state())).collect();
-        }
+    loop {
+        std::thread::sleep(std::time::Duration::from_secs(2));
+        println!("Start");
+        let mut uhh = devs.lock().unwrap();
+        let updateiterator: Vec<_> = uhh.values_mut().map(|d| Box::pin(d.update_state())).collect();
+        block_on(join_all(updateiterator));
+    }
 }
 
 #[derive(Clap, Debug)]
@@ -142,7 +138,8 @@ fn main() {
     {
         let mut devlist = current_devices.lock().unwrap();
         for chunk in opts.power_supplies.chunks_exact(2) {
-            let port = match ka3005p::Ka3005p::new(&chunk[1]) {
+            let port = match ka3005p::Ka3005p::new(&chunk[1])
+            {
                 Ok(port) => port,
                 Err(e) => {
                     eprintln!("Serial port failure: {}", e);
