@@ -16,7 +16,6 @@ use serde::Serialize;
 use rust_embed::RustEmbed;
 use rust_embed_rocket;
 
-
 #[derive(RustEmbed)]
 #[folder = "build/"]
 struct WebAssets;
@@ -34,7 +33,7 @@ struct Device {
 }
 
 impl Device {
-    async fn update_state(&mut self) {
+    fn update_state(&mut self) {
         let res = self.connection.status();
         println!("wow");
         match res {
@@ -50,10 +49,11 @@ impl Device {
     fn set_power(&mut self, output: bool) {
         // Do what the user asked
         println!("Setting power to {:?}", output);
-        self.connection.execute(ka3005p::Command::Power(output.into()))
-        .expect("Sending Command Failed! {}");
+        self.connection
+            .execute(ka3005p::Command::Power(output.into()))
+            .expect("Sending Command Failed! {}");
         // Update state to reflect all changes
-        block_on(self.update_state());
+        self.update_state();
     }
 }
 
@@ -76,7 +76,7 @@ fn toggledevice(name: String, devs: State<DeviceList>) -> Option<Json<DeviceStat
     let mut devlock = devs.lock().unwrap();
     let dev = devlock.get_mut(&name)?;
     // Make sure the state is up to date before we attempt to do the logic not
-    block_on(dev.update_state());
+    dev.update_state();
     dev.set_power(!dev.state.power);
     Some(Json(dev.state))
 }
@@ -93,9 +93,15 @@ fn update_device_states(devs: DeviceList) {
     loop {
         std::thread::sleep(std::time::Duration::from_secs(2));
         println!("Start");
-        let mut uhh = devs.lock().unwrap();
-        let updateiterator: Vec<_> = uhh.values_mut().map(|d| Box::pin(d.update_state())).collect();
-        block_on(join_all(updateiterator));
+        let uhh = devs.lock().unwrap();
+        let zz = uhh.into_iter();
+        let updateiterator: Vec<_> = zz.map(move |(k, mut d)| {
+                std::thread::spawn(move || {
+                    d.update_state();
+                    (k, d)
+                })
+            })
+            .collect();
     }
 }
 
@@ -138,8 +144,7 @@ fn main() {
     {
         let mut devlist = current_devices.lock().unwrap();
         for chunk in opts.power_supplies.chunks_exact(2) {
-            let port = match ka3005p::Ka3005p::new(&chunk[1])
-            {
+            let port = match ka3005p::Ka3005p::new(&chunk[1]) {
                 Ok(port) => port,
                 Err(e) => {
                     eprintln!("Serial port failure: {}", e);
