@@ -80,7 +80,7 @@ function App() {
 
   useEffect(() => {
     requestUpdate();
-    const interval = setInterval(requestUpdate, 1000);
+    const interval = setInterval(requestUpdate, 5000);
     return () => clearInterval(interval);
     // Only care about DidMount so ignore warning about deps. This will never be called again
     // eslint-disable-next-line react-hooks/exhaustive-deps

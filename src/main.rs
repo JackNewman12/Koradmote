@@ -87,7 +87,7 @@ fn setdevice(name: String, state: bool, devs: State<DeviceList>) -> Option<Json<
 
 fn update_device_states(devs: DeviceList) {
     loop {
-        std::thread::sleep(std::time::Duration::from_secs(1));
+        std::thread::sleep(std::time::Duration::from_secs(2));
         for (_, d) in devs.lock().unwrap().iter_mut() {
             d.update_state();
         }
