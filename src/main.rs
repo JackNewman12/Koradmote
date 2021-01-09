@@ -1,4 +1,4 @@
-#![feature(proc_macro_hygiene, decl_macro)]
+#![feature(decl_macro)]
 #[macro_use]
 extern crate rocket;
 
@@ -25,6 +25,8 @@ struct DeviceState {
     power: bool,
 }
 
+type DeviceList = Arc<Mutex<BTreeMap<String, Device>>>;
+
 struct Device {
     connection: ka3005p::Ka3005p,
     state: DeviceState,
@@ -46,14 +48,13 @@ impl Device {
     fn set_power(&mut self, output: bool) {
         // Do what the user asked
         println!("Setting power to {:?}", output);
-        self.connection.execute(ka3005p::Command::Power(output.into()))
-        .expect("Sending Command Failed! {}");
+        self.connection
+            .execute(ka3005p::Command::Power(output.into()))
+            .expect("Sending Command Failed! {}");
         // Update state to reflect all changes
         self.update_state();
     }
 }
-
-type DeviceList = Arc<Mutex<BTreeMap<String, Device>>>;
 
 #[get("/")]
 fn devices(devs: State<DeviceList>) -> Json<BTreeMap<String, DeviceState>> {
@@ -85,12 +86,26 @@ fn setdevice(name: String, state: bool, devs: State<DeviceList>) -> Option<Json<
     Some(Json(dev.state))
 }
 
+/// Update each of the device
 fn update_device_states(devs: DeviceList) {
     loop {
-        std::thread::sleep(std::time::Duration::from_secs(2));
-        for (_, d) in devs.lock().unwrap().iter_mut() {
-            d.update_state();
-        }
+        std::thread::sleep(std::time::Duration::from_secs(1));
+        let mut devices = devs.lock().unwrap();
+        let device_replace = std::mem::replace(&mut *devices, BTreeMap::new());
+        let update_threads: Vec<_> = device_replace
+            .into_iter()
+            .map(|(k, mut d)| {
+                std::thread::spawn(move || {
+                    d.update_state();
+                    (k, d)
+                })
+            })
+            .collect();
+
+        *devices = update_threads
+            .into_iter()
+            .map(|t| t.join().unwrap())
+            .collect();
     }
 }
 
@@ -133,8 +148,7 @@ fn main() {
     {
         let mut devlist = current_devices.lock().unwrap();
         for chunk in opts.power_supplies.chunks_exact(2) {
-            let port = match ka3005p::Ka3005p::new(&chunk[1])
-            {
+            let port = match ka3005p::Ka3005p::new(&chunk[1]) {
                 Ok(port) => port,
                 Err(e) => {
                     eprintln!("Serial port failure: {}", e);
