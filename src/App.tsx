@@ -38,17 +38,17 @@ function PowerButton(props: { DevName: string; PowerState: boolean; updateData: 
       .then(z => z.json())
       .then((data: DeviceState) => {
         props.updateData({ [props.DevName]: data });
-        setisDisabled(false);
       })
       .catch((err) => {
         alert("Toggle PSU Failed");
         console.error(err)
-      });
+      })
+      .then(() => {setisDisabled(false)});
   };
 
   useEffect(() => {
     setisDisabled(false);
-  }, [props]);
+  }, [props]); // TODO - 'props' is a catch all. 'props.powerstate' might work
 
   return <Button variant="contained"
     style={{ backgroundColor: props.PowerState ? "limegreen" : "red" }}
@@ -80,7 +80,7 @@ function App() {
 
   useEffect(() => {
     requestUpdate();
-    const interval = setInterval(requestUpdate, 5000);
+    const interval = setInterval(requestUpdate, 2000);
     return () => clearInterval(interval);
     // Only care about DidMount so ignore warning about deps. This will never be called again
     // eslint-disable-next-line react-hooks/exhaustive-deps
