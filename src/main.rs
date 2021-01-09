@@ -4,7 +4,6 @@
 extern crate rocket;
 
 use clap::Clap;
-use futures::{executor::block_on, future::join_all};
 
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
@@ -35,7 +34,6 @@ struct Device {
 impl Device {
     fn update_state(&mut self) {
         let res = self.connection.status();
-        println!("wow");
         match res {
             Ok(status) => {
                 // println!("{}", Json(status).to_string());
@@ -89,18 +87,25 @@ fn setdevice(name: String, state: bool, devs: State<DeviceList>) -> Option<Json<
     Some(Json(dev.state))
 }
 
+/// Update each of the device
 fn update_device_states(devs: DeviceList) {
     loop {
-        std::thread::sleep(std::time::Duration::from_secs(2));
-        println!("Start");
-        let uhh = devs.lock().unwrap();
-        let zz = uhh.into_iter();
-        let updateiterator: Vec<_> = zz.map(move |(k, mut d)| {
+        std::thread::sleep(std::time::Duration::from_secs(1));
+        let mut devices = devs.lock().unwrap();
+        let device_replace = std::mem::replace(&mut *devices, BTreeMap::new());
+        let update_threads: Vec<_> = device_replace
+            .into_iter()
+            .map(|(k, mut d)| {
                 std::thread::spawn(move || {
                     d.update_state();
                     (k, d)
                 })
             })
+            .collect();
+
+        *devices = update_threads
+            .into_iter()
+            .map(|t| t.join().unwrap())
             .collect();
     }
 }

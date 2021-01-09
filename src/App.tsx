@@ -38,17 +38,17 @@ function PowerButton(props: { DevName: string; PowerState: boolean; updateData: 
       .then(z => z.json())
       .then((data: DeviceState) => {
         props.updateData({ [props.DevName]: data });
-        setisDisabled(false);
       })
       .catch((err) => {
         alert("Toggle PSU Failed");
         console.error(err)
-      });
+      })
+      .then(() => {setisDisabled(false)});
   };
 
   useEffect(() => {
     setisDisabled(false);
-  }, [props]);
+  }, [props.PowerState]);
 
   return <Button variant="contained"
     style={{ backgroundColor: props.PowerState ? "limegreen" : "red" }}
