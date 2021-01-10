@@ -19,9 +19,40 @@ jobs:
     - uses: actions-rs/toolchain@v1
       with:
         toolchain: nightly
+        default: true
+        components: clippy
     - uses: actions/setup-node@v2
       with:
         node-version: '12'
+    - run: sudo apt-get install libudev-dev mingw-w64 pkg-config -y
     - run: npm install
-    - run: npm run build  
-    - run: cargo build --release
+    - run: npm run build ; find ./build/ -iname *.map -delete
+    - uses: actions-rs/cargo@v1
+      with:
+          use-cross: true
+          command: build
+          args: +nightly --target x86_64-pc-windows-gnu --release
+    - uses: actions-rs/cargo@v1
+      with:
+          command: build
+          args: --target x86_64-unknown-linux-gnu --release
+    - uses: actions-rs/clippy-check@v1
+      with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --all-features
+    - name: Upload binary
+      uses: actions/upload-release-asset@v1
+      env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+          asset_name: koradmote-linux-x86_64
+          asset_path: target/x86_64-unknown-linux-gnu/release/koradmote
+          upload_url: ${{ github.event.release.upload_url }}
+    - name: Upload Windows binary
+      uses: actions/upload-release-asset@v1
+      env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+          asset_name: koradmote-windows-x86_64.exe
+          asset_path: target/x86_64-pc-windows-gnu/release/koradmote.exe
+          upload_url: ${{ github.event.release.upload_url }}
