@@ -50,6 +50,7 @@ jobs:
           asset_name: koradmote-linux-x86_64
           asset_path: target/x86_64-unknown-linux-gnu/release/koradmote
           upload_url: ${{ github.event.release.upload_url }}
+          asset_content_type: application/octet-stream
     - name: Upload Windows binary
       if: github.event_name == 'release'
       uses: actions/upload-release-asset@v1
