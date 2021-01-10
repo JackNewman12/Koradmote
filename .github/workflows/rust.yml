@@ -41,6 +41,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-features
     - name: Upload binary
+      if: github.event_name == 'release'
       uses: actions/upload-release-asset@v1
       env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -49,6 +50,7 @@ jobs:
           asset_path: target/x86_64-unknown-linux-gnu/release/koradmote
           upload_url: ${{ github.event.release.upload_url }}
     - name: Upload Windows binary
+      if: github.event_name == 'release'
       uses: actions/upload-release-asset@v1
       env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
