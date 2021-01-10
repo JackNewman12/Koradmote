@@ -1,6 +1,11 @@
 name: Rust
 
-on: [push, pull_request, release]
+on: 
+  push:
+  pull_request:
+  release:
+    types: [published]
+
 
 env:
   CARGO_TERM_COLOR: always
