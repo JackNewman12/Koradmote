@@ -4,12 +4,26 @@
   }
 }
 
-body {
-  background: lightgrey;
-}
 .App {
   /* width: max-content; */
   margin: auto;
+}
+
+html, body {
+  background: lightgrey;
+  height: 100%;
+}
+body {
+  display: flex;
+  flex-direction: column;
+}
+.content {
+  flex: 1 0 auto;
+}
+.footer {
+  flex-shrink: 0;
+  align-self: end;
+  opacity: 0.3;
 }
 
 @keyframes App-logo-spin {

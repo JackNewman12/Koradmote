@@ -46,9 +46,11 @@ function PowerButton(props: { DevName: string; PowerState: boolean; updateData: 
       .then(() => {setisDisabled(false)});
   };
 
-  useEffect(() => {
-    setisDisabled(false);
-  }, [props]); // TODO - 'props' is a catch all. 'props.powerstate' might work
+  // TODO - This used to be a catch-all. 
+  // Pretty sure its unnecessary since the promise is implemented 
+  // useEffect(() => {
+  //   setisDisabled(false);
+  // }, [props]); 
 
   return <Button variant="contained"
     style={{ backgroundColor: props.PowerState ? "limegreen" : "red" }}
@@ -91,7 +93,7 @@ function App() {
       <AppBar >
         <Toolbar style={{ gap: "10px" }}>
           <img src={logo} className="App-logo" alt="logo" height={40} />
-          Power Supply Thingo
+          Koradmote
           {wasFailure && <Alert variant="filled" severity="error">Last Update Request Failed</Alert>}
           {pendingData && <CircularProgress disableShrink color="secondary" />}
           {/* <Fab color="secondary" aria-label="add" style={{ margin: 0, right: 20, position: 'fixed' }}
