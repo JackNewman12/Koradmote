@@ -5,11 +5,11 @@ A simple Korad (and clones) power supply server.
 ![Screenshot](https://github.com/JackNewman12/PSUReact/blob/main/Screenshot.png)
 
 
-Design goals:
+**Design Goals:**
  * Dirt simple REST API so other automated frameworks can toggle devices
  * No changing of power / current settings. i.e. Idiot-proof
- * Simple frontend and backend design - single source file design
- * Single binary output - all files embedded
+ * Simple frontend and backend design - only a single source
+ * Single binary output - all files embedded, no mucking around
 
 ## Running
 Grab the binaries from the Releases.
@@ -37,7 +37,7 @@ curl -s localhost:8000/device/Dev1
 ```
 ### Toggle Devices
 `/device/{name}/toggle` will toggle the device
-`/device/{name}/toggle/true``toggle/false` will set the device to the target state
+`/device/{name}/toggle/true` will set the device to the target state
 The reponse will return the state of the power supply after the toggle.
 ```
 curl -s localhost:8000/device/Dev1/toggle
@@ -51,9 +51,9 @@ curl -s localhost:8000/device/Dev1/toggle/false
 
 # Building
 Assuming Node.js and Rust are installed
-{{{
+```
   npm install
   cargo build --release
-}}}
+```
 
 Note that the debug version of the binary will use the files in the `/build/` folder for faster development. The release build will embed the files inside the binary
