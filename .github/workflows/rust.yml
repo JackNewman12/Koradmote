@@ -59,3 +59,4 @@ jobs:
           asset_name: koradmote-windows-x86_64.exe
           asset_path: target/x86_64-pc-windows-gnu/release/koradmote.exe
           upload_url: ${{ github.event.release.upload_url }}
+          asset_content_type: application/octet-stream
