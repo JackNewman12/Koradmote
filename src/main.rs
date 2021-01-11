@@ -4,11 +4,12 @@ extern crate rocket;
 
 use clap::Clap;
 
-use std::{collections::BTreeMap};
-use std::sync::{Arc, Mutex};
 use anyhow;
+use std::sync::{Arc, Mutex};
+use std::{collections::BTreeMap, io::Cursor};
 
-use rocket::{State};
+use rocket::http::Status;
+use rocket::{Response, State};
 use rocket_contrib::json::Json;
 use serde::Serialize;
 
@@ -45,7 +46,8 @@ impl Device {
     fn set_power(&mut self, output: bool) -> anyhow::Result<DeviceState> {
         // Do what the user asked
         println!("Setting power to {:?}", output);
-        self.connection.execute(ka3005p::Command::Power(output.into()))?;
+        self.connection
+            .execute(ka3005p::Command::Power(output.into()))?;
         // Update state to reflect all changes
         self.update_state()
     }
@@ -64,20 +66,44 @@ fn device(name: String, devs: State<DeviceList>) -> Option<Json<DeviceState>> {
 }
 
 #[get("/<name>/toggle")]
-fn toggledevice(name: String, devs: State<DeviceList>) -> Option<Json<DeviceState>> {
+fn toggledevice(name: String, devs: State<DeviceList>) -> Result<Json<DeviceState>, Response> {
     let mut devlock = devs.lock().unwrap();
-    let dev = devlock.get_mut(&name)?;
+    let dev = devlock.get_mut(&name).ok_or_else(|| {
+        Response::build()
+            .status(Status::NotFound)
+            .sized_body(Cursor::new("Device not found"))
+            .finalize()
+    })?;
     // Given the user interface is blocked while using serial, we can assume the state is the same as the last update
-    dev.set_power(!dev.state.power).ok()?;
-    Some(Json(dev.state))
+    dev.set_power(!dev.state.power).map_err(|_| {
+        Response::build()
+            .status(Status::InternalServerError)
+            .sized_body(Cursor::new("Failed to toggle device"))
+            .finalize()
+    })?;
+    Ok(Json(dev.state))
 }
 
 #[get("/<name>/toggle/<state>")]
-fn setdevice(name: String, state: bool, devs: State<DeviceList>) -> Option<Json<DeviceState>> {
+fn setdevice(
+    name: String,
+    state: bool,
+    devs: State<DeviceList>,
+) -> Result<Json<DeviceState>, Response> {
     let mut devlock = devs.lock().unwrap();
-    let dev = devlock.get_mut(&name)?;
-    dev.set_power(state).ok()?;
-    Some(Json(dev.state))
+    let dev = devlock.get_mut(&name).ok_or_else(|| {
+        Response::build()
+            .status(Status::NotFound)
+            .sized_body(Cursor::new("Device not found"))
+            .finalize()
+    })?;
+    dev.set_power(state).map_err(|_| {
+        Response::build()
+            .status(Status::InternalServerError)
+            .sized_body(Cursor::new("Failed to toggle device"))
+            .finalize()
+    })?;
+    Ok(Json(dev.state))
 }
 
 /// Update each of the device
@@ -91,7 +117,7 @@ fn update_device_states(devs: DeviceList) {
             .map(|(k, mut d)| {
                 std::thread::spawn(move || {
                     match d.update_state() {
-                        Ok(_) => {},
+                        Ok(_) => {}
                         Err(e) => println!("Update Failed - {} - {}", k, e),
                     }
                     (k, d)
