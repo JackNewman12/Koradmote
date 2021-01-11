@@ -4,10 +4,11 @@ extern crate rocket;
 
 use clap::Clap;
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap};
 use std::sync::{Arc, Mutex};
+use anyhow;
 
-use rocket::State;
+use rocket::{State};
 use rocket_contrib::json::Json;
 use serde::Serialize;
 
@@ -33,26 +34,20 @@ struct Device {
 }
 
 impl Device {
-    fn update_state(&mut self) {
-        let res = self.connection.status();
-        match res {
-            Ok(status) => {
-                // println!("{}", Json(status).to_string());
-                self.state.voltage = status.voltage;
-                self.state.current = status.current;
-                self.state.power = status.flags.output.into();
-            }
-            Err(err) => println!("Update PSU failed! {}", err),
-        }
+    fn update_state(&mut self) -> anyhow::Result<DeviceState> {
+        let status = self.connection.status()?;
+        self.state.voltage = status.voltage;
+        self.state.current = status.current;
+        self.state.power = status.flags.output.into();
+        Ok(self.state)
     }
-    fn set_power(&mut self, output: bool) {
+
+    fn set_power(&mut self, output: bool) -> anyhow::Result<DeviceState> {
         // Do what the user asked
         println!("Setting power to {:?}", output);
-        self.connection
-            .execute(ka3005p::Command::Power(output.into()))
-            .expect("Sending Command Failed! {}");
+        self.connection.execute(ka3005p::Command::Power(output.into()))?;
         // Update state to reflect all changes
-        self.update_state();
+        self.update_state()
     }
 }
 
@@ -72,9 +67,8 @@ fn device(name: String, devs: State<DeviceList>) -> Option<Json<DeviceState>> {
 fn toggledevice(name: String, devs: State<DeviceList>) -> Option<Json<DeviceState>> {
     let mut devlock = devs.lock().unwrap();
     let dev = devlock.get_mut(&name)?;
-    // Make sure the state is up to date before we attempt to do the logic not
-    dev.update_state();
-    dev.set_power(!dev.state.power);
+    // Given the user interface is blocked while using serial, we can assume the state is the same as the last update
+    dev.set_power(!dev.state.power).ok()?;
     Some(Json(dev.state))
 }
 
@@ -82,7 +76,7 @@ fn toggledevice(name: String, devs: State<DeviceList>) -> Option<Json<DeviceStat
 fn setdevice(name: String, state: bool, devs: State<DeviceList>) -> Option<Json<DeviceState>> {
     let mut devlock = devs.lock().unwrap();
     let dev = devlock.get_mut(&name)?;
-    dev.set_power(state);
+    dev.set_power(state).ok()?;
     Some(Json(dev.state))
 }
 
@@ -96,7 +90,10 @@ fn update_device_states(devs: DeviceList) {
             .into_iter()
             .map(|(k, mut d)| {
                 std::thread::spawn(move || {
-                    d.update_state();
+                    match d.update_state() {
+                        Ok(_) => {},
+                        Err(e) => println!("Update Failed - {} - {}", k, e),
+                    }
                     (k, d)
                 })
             })

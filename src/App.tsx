@@ -35,15 +35,22 @@ function PowerButton(props: { DevName: string; PowerState: boolean; updateData: 
     console.log(`Toggling ${props.DevName}`);
 
     fetch(`${API_URL}device/${props.DevName}/toggle`)
-      .then(z => z.json())
+      .then(response => {
+        if (response.ok) {
+          return response.json()
+        }
+        else {
+          return Promise.reject("Toggle Failed")
+        }
+      })
       .then((data: DeviceState) => {
         props.updateData({ [props.DevName]: data });
       })
       .catch((err) => {
-        alert("Toggle PSU Failed");
+        alert(`Failure: ${err}`);
         console.error(err)
       })
-      .then(() => {setisDisabled(false)});
+      .then(() => { setisDisabled(false) });
   };
 
   // TODO - This used to be a catch-all. 
