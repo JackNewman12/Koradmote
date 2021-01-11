@@ -27,7 +27,11 @@ jobs:
         node-version: '12'
     - run: sudo apt-get install libudev-dev mingw-w64 pkg-config -y
     - run: npm install
-    - run: npm run build ; find ./build/ -iname *.map -delete
+    - run: npm run build
+    - uses: actions-rs/clippy-check@v1
+      with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --all-features
     - uses: actions-rs/cargo@v1
       with:
           use-cross: true
@@ -39,10 +43,7 @@ jobs:
           command: build
           args: --target x86_64-unknown-linux-gnu --release
     - run: strip target/x86_64-unknown-linux-gnu/release/koradmote
-    - uses: actions-rs/clippy-check@v1
-      with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features
+
     - name: Upload binary
       if: github.event_name == 'release'
       uses: actions/upload-release-asset@v1

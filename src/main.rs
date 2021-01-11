@@ -4,7 +4,6 @@ extern crate rocket;
 
 use clap::Clap;
 
-use anyhow;
 use std::sync::{Arc, Mutex};
 use std::{collections::BTreeMap, io::Cursor};
 
@@ -14,7 +13,6 @@ use rocket_contrib::json::Json;
 use serde::Serialize;
 
 use rust_embed::RustEmbed;
-use rust_embed_rocket;
 
 #[derive(RustEmbed)]
 #[folder = "build/"]
