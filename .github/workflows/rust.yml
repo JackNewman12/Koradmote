@@ -33,8 +33,10 @@ jobs:
     - uses: actions-rs/clippy-check@v1
       name: Clippy
       with:
+          use-cross: true
+          name: clippy-${{ matrix.os }}
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features
+          args: --all-features --target ${{ matrix.os }}
 
     - name: Build Binary
       uses: actions-rs/cargo@v1
