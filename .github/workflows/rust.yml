@@ -28,7 +28,7 @@ jobs:
       with:
         node-version: '12'
     - run: npm install
-    - run: npm run build
+    - run: npm run build; find ./build/ -iname *.map -delete
 
     - uses: actions-rs/clippy-check@v1
       name: Clippy
@@ -47,6 +47,7 @@ jobs:
 
     - name: Save Artifact
       uses: actions/upload-artifact@v2
+      if: matrix.os != 'x86_64-pc-windows-gnu'
       with:
         name: koradmote-${{ matrix.os }}
         path: target/${{ matrix.os }}/release/koradmote
@@ -59,7 +60,7 @@ jobs:
         path: target/${{ matrix.os }}/release/koradmote.exe
 
     - name: Upload binary
-      if: github.event_name == 'release'
+      if: github.event_name == 'release' && matrix.os != 'x86_64-pc-windows-gnu'
       uses: actions/upload-release-asset@v1
       env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
