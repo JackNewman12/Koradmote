@@ -12,8 +12,10 @@ env:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [x86_64-pc-windows-gnu, x86_64-unknown-linux-musl, arm-unknown-linux-musleabihf]
 
     steps:
     - uses: actions/checkout@v2
@@ -25,24 +27,34 @@ jobs:
     - uses: actions/setup-node@v2
       with:
         node-version: '12'
-    - run: sudo apt-get install libudev-dev mingw-w64 pkg-config -y
     - run: npm install
     - run: npm run build
+
     - uses: actions-rs/clippy-check@v1
+      name: Clippy
       with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-features
-    - uses: actions-rs/cargo@v1
+
+    - name: Build Binary
+      uses: actions-rs/cargo@v1
       with:
           use-cross: true
           command: build
-          args: +nightly --target x86_64-pc-windows-gnu --release
-    - run: x86_64-w64-mingw32-strip target/x86_64-pc-windows-gnu/release/koradmote.exe
-    - uses: actions-rs/cargo@v1
+          args: ${{ matrix.os }} --release
+
+    - name: Save Artifact
+      uses: actions/upload-artifact@v2
       with:
-          command: build
-          args: --target x86_64-unknown-linux-gnu --release
-    - run: strip target/x86_64-unknown-linux-gnu/release/koradmote
+        name: koradmote-${{ matrix.os }}
+        path: target/${{ matrix.os }}/release/koradmote
+        
+    - name: Save Windows Artifact
+      uses: actions/upload-artifact@v2
+      if: matrix.os == 'x86_64-pc-windows-gnu'
+      with:
+        name: koradmote-${{ matrix.os }}.exe
+        path: target/${{ matrix.os }}/release/koradmote.exe
 
     - name: Upload binary
       if: github.event_name == 'release'
@@ -50,17 +62,18 @@ jobs:
       env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-          asset_name: koradmote-linux-x86_64
-          asset_path: target/x86_64-unknown-linux-gnu/release/koradmote
+          asset_name: koradmote-${{ matrix.os }}
+          asset_path: target/${{ matrix.os }}/release/koradmote
           upload_url: ${{ github.event.release.upload_url }}
           asset_content_type: application/octet-stream
     - name: Upload Windows binary
-      if: github.event_name == 'release'
+      if: github.event_name == 'release' && matrix.os == 'x86_64-pc-windows-gnu'
       uses: actions/upload-release-asset@v1
       env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-          asset_name: koradmote-windows-x86_64.exe
-          asset_path: target/x86_64-pc-windows-gnu/release/koradmote.exe
+          asset_name: koradmote-${{ matrix.os }}.exe
+          asset_path: target/${{ matrix.os }}/release/koradmote.exe
           upload_url: ${{ github.event.release.upload_url }}
           asset_content_type: application/octet-stream
+    
