@@ -43,7 +43,7 @@ jobs:
       with:
           use-cross: true
           command: build
-          args: ${{ matrix.os }} --release
+          args: --target ${{ matrix.os }} --release
 
     - name: Save Artifact
       uses: actions/upload-artifact@v2
