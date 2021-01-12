@@ -30,15 +30,17 @@ curl -s localhost:8000/device/
 }
 ```
 ### Single Device
-`/device/{name}/` Returns the state of just a single device
+`/device/{name}/` Returns the state of just a single device or `404 Not Found` for invalid device name
 ```
 curl -s localhost:8000/device/Dev1
   {"voltage":0.0, "current":0.0, "power":false}
 ```
 ### Toggle Devices
 `/device/{name}/toggle` will toggle the device
+
 `/device/{name}/toggle/true` will set the device to the target state
-The reponse will return the state of the power supply after the toggle.
+
+The reponse will return the state of the power supply after the toggle or `404 Not Found` for invalid device name and `500 Internal Server Error` for toggle/serial comms failure.
 ```
 curl -s localhost:8000/device/Dev1/toggle
   {"voltage":0.0, "current":0.0, "power":false}
