@@ -1,5 +1,8 @@
 #![feature(decl_macro)]
-
+#![deny(
+    clippy::all,
+    clippy::pedantic,
+)]
 use clap::Clap;
 
 use serde::Serialize;
@@ -7,7 +10,6 @@ use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
 use rust_embed::RustEmbed;
-use tokio;
 use warp::{reject::Reject, Filter};
 
 #[derive(RustEmbed)]
@@ -61,7 +63,7 @@ async fn device(name: String, devs: DeviceList) -> Result<warp::reply::Json, war
     let data = devs.lock().unwrap();
     match data.get(&name) {
         Some(data) => Ok(warp::reply::json(&data.state)),
-        _ => Err(warp::reject::not_found()),
+        None => Err(warp::reject::not_found()),
     }
 }
 
@@ -73,9 +75,7 @@ async fn toggledevice(
     devs: DeviceList,
 ) -> Result<warp::reply::Json, warp::Rejection> {
     let mut devlock = devs.lock().unwrap();
-    let dev = devlock
-        .get_mut(&name)
-        .ok_or_else(|| warp::reject::not_found())?;
+    let dev = devlock.get_mut(&name).ok_or_else(warp::reject::not_found)?;
     // Given the user interface is blocked while using serial, we can assume the state is the same as the last update
     dev.set_power(!dev.state.power)
         .map_err(|_| warp::reject::custom(ToggleFailed))?;
@@ -88,16 +88,14 @@ async fn setdevice(
     devs: DeviceList,
 ) -> Result<warp::reply::Json, warp::Rejection> {
     let mut devlock = devs.lock().unwrap();
-    let dev = devlock
-        .get_mut(&name)
-        .ok_or_else(|| warp::reject::not_found())?;
+    let dev = devlock.get_mut(&name).ok_or_else(warp::reject::not_found)?;
     dev.set_power(state)
         .map_err(|_| warp::reject::custom(ToggleFailed))?;
     Ok(warp::reply::json(&dev.state))
 }
 
 /// Update each of the device
-fn update_device_states(devs: DeviceList) {
+fn update_device_states(devs: &DeviceList) {
     loop {
         std::thread::sleep(std::time::Duration::from_secs(1));
         let mut devices = devs.lock().unwrap();
@@ -149,7 +147,7 @@ async fn main() {
     // Pass it to the updater thread
     {
         let dev_arc = current_devices.clone();
-        std::thread::spawn(move || update_device_states(dev_arc));
+        std::thread::spawn(move || update_device_states(&dev_arc));
     }
 
     {
@@ -167,14 +165,16 @@ async fn main() {
                 chunk[0].to_string(),
                 Device {
                     connection: port,
-                    state: Default::default(),
+                    state: DeviceState::default(),
                 },
             );
         }
     }
 
     //
-    let route = warp::any().and(warp_embed::embed(&WebAssets)); //.with(warp::compression::gzip());
+    let route = warp::any()
+        .and(warp_embed::embed(&WebAssets))
+        .with(warp::compression::gzip());
 
     let devices_filter = warp::any().map(move || current_devices.clone());
     let alldevices = warp::path!("device")
