@@ -1,18 +1,14 @@
 #![feature(decl_macro)]
-#[macro_use]
-extern crate rocket;
 
 use clap::Clap;
 
-use std::sync::{Arc, Mutex};
-use std::{collections::BTreeMap, io::Cursor};
-
-use rocket::http::Status;
-use rocket::{Response, State};
-use rocket_contrib::json::Json;
 use serde::Serialize;
+use std::collections::BTreeMap;
+use std::sync::{Arc, Mutex};
 
 use rust_embed::RustEmbed;
+use tokio;
+use warp::{reject::Reject, Filter};
 
 #[derive(RustEmbed)]
 #[folder = "build/"]
@@ -51,57 +47,53 @@ impl Device {
     }
 }
 
-#[get("/")]
-fn devices(devs: State<DeviceList>) -> Json<BTreeMap<String, DeviceState>> {
+async fn devices(devs: DeviceList) -> Result<warp::reply::Json, warp::Rejection> {
     let data = devs.lock().unwrap();
-    Json(data.iter().map(|(k, d)| (k.clone(), d.state)).collect())
+    Ok(warp::reply::json(
+        &data
+            .iter()
+            .map(|(k, d)| (k.clone(), d.state))
+            .collect::<BTreeMap<String, DeviceState>>(),
+    ))
 }
 
-#[get("/<name>")]
-fn device(name: String, devs: State<DeviceList>) -> Option<Json<DeviceState>> {
+async fn device(name: String, devs: DeviceList) -> Result<warp::reply::Json, warp::Rejection> {
     let data = devs.lock().unwrap();
-    Some(Json(data.get(&name)?.state))
+    match data.get(&name) {
+        Some(data) => Ok(warp::reply::json(&data.state)),
+        _ => Err(warp::reject::not_found()),
+    }
 }
 
-#[get("/<name>/toggle")]
-fn toggledevice(name: String, devs: State<DeviceList>) -> Result<Json<DeviceState>, Response> {
+#[derive(Debug)]
+struct ToggleFailed;
+impl Reject for ToggleFailed {}
+async fn toggledevice(
+    name: String,
+    devs: DeviceList,
+) -> Result<warp::reply::Json, warp::Rejection> {
     let mut devlock = devs.lock().unwrap();
-    let dev = devlock.get_mut(&name).ok_or_else(|| {
-        Response::build()
-            .status(Status::NotFound)
-            .sized_body(Cursor::new("Device not found"))
-            .finalize()
-    })?;
+    let dev = devlock
+        .get_mut(&name)
+        .ok_or_else(|| warp::reject::not_found())?;
     // Given the user interface is blocked while using serial, we can assume the state is the same as the last update
-    dev.set_power(!dev.state.power).map_err(|_| {
-        Response::build()
-            .status(Status::InternalServerError)
-            .sized_body(Cursor::new("Failed to toggle device"))
-            .finalize()
-    })?;
-    Ok(Json(dev.state))
+    dev.set_power(!dev.state.power)
+        .map_err(|_| warp::reject::custom(ToggleFailed))?;
+    Ok(warp::reply::json(&dev.state))
 }
 
-#[get("/<name>/toggle/<state>")]
-fn setdevice(
+async fn setdevice(
     name: String,
     state: bool,
-    devs: State<DeviceList>,
-) -> Result<Json<DeviceState>, Response> {
+    devs: DeviceList,
+) -> Result<warp::reply::Json, warp::Rejection> {
     let mut devlock = devs.lock().unwrap();
-    let dev = devlock.get_mut(&name).ok_or_else(|| {
-        Response::build()
-            .status(Status::NotFound)
-            .sized_body(Cursor::new("Device not found"))
-            .finalize()
-    })?;
-    dev.set_power(state).map_err(|_| {
-        Response::build()
-            .status(Status::InternalServerError)
-            .sized_body(Cursor::new("Failed to toggle device"))
-            .finalize()
-    })?;
-    Ok(Json(dev.state))
+    let dev = devlock
+        .get_mut(&name)
+        .ok_or_else(|| warp::reject::not_found())?;
+    dev.set_power(state)
+        .map_err(|_| warp::reject::custom(ToggleFailed))?;
+    Ok(warp::reply::json(&dev.state))
 }
 
 /// Update each of the device
@@ -141,7 +133,8 @@ struct Opts {
     verbose: i32,
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let opts: Opts = Opts::parse();
 
     // println!("{:?}", opts);
@@ -150,22 +143,15 @@ fn main() {
         return;
     }
 
-    let rocket = rocket::ignite()
-        .mount("/device", routes![devices, device, toggledevice, setdevice])
-        // .mount("/", StaticFiles::from("build/"))
-        .mount(
-            "/",
-            rust_embed_rocket::Server::from_config(
-                WebAssets,
-                rust_embed_rocket::Config {
-                    serve_index: true,
-                    ..Default::default()
-                },
-            ),
-        )
-        .manage(DeviceList::default());
+    // Create the devices struct
+    let current_devices = DeviceList::default();
 
-    let current_devices = rocket.state::<DeviceList>().unwrap();
+    // Pass it to the updater thread
+    {
+        let dev_arc = current_devices.clone();
+        std::thread::spawn(move || update_device_states(dev_arc));
+    }
+
     {
         let mut devlist = current_devices.lock().unwrap();
         for chunk in opts.power_supplies.chunks_exact(2) {
@@ -187,9 +173,28 @@ fn main() {
         }
     }
 
-    let dev_arc = current_devices.clone();
-    std::thread::spawn(move || update_device_states(dev_arc));
+    //
+    let route = warp::any().and(warp_embed::embed(&WebAssets)); //.with(warp::compression::gzip());
 
-    // Start the rocket server. This blocks forever
-    rocket.launch();
+    let devices_filter = warp::any().map(move || current_devices.clone());
+    let alldevices = warp::path!("device")
+        .and(devices_filter.clone())
+        .and_then(devices);
+    let singledevice = warp::path!("device" / String)
+        .and(devices_filter.clone())
+        .and_then(device);
+    let toggledevice = warp::path!("device" / String / "toggle")
+        .and(devices_filter.clone())
+        .and_then(toggledevice);
+    let setdevice = warp::path!("device" / String / "toggle" / bool)
+        .and(devices_filter.clone())
+        .and_then(setdevice);
+
+    let routes = route
+        .or(alldevices)
+        .or(singledevice)
+        .or(toggledevice)
+        .or(setdevice);
+
+    warp::serve(routes).run(([127, 0, 0, 1], 3030)).await;
 }
