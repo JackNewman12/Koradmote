@@ -117,7 +117,7 @@ fn update_device_states(devs: DeviceList) {
                     match d.update_state() {
                         Ok(_) => {}
                         Err(e) => println!("Update Failed - {} - {}", k, e),
-                    }
+                    };
                     (k, d)
                 })
             })
@@ -181,7 +181,7 @@ fn main() {
                 chunk[0].to_string(),
                 Device {
                     connection: port,
-                    state: Default::default(),
+                    state: DeviceState::default(),
                 },
             );
         }
