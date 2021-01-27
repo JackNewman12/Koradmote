@@ -107,7 +107,7 @@ fn update_device_states(devs: &DeviceList) {
                     match d.update_state() {
                         Ok(_) => {}
                         Err(e) => println!("Update Failed - {} - {}", k, e),
-                    }
+                    };
                     (k, d)
                 })
             })

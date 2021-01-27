@@ -7,7 +7,7 @@ A simple Korad (and clones) power supply server.
 
 **Design Goals:**
  * Dirt simple REST API so other automated frameworks can toggle devices
- * No changing of power / current settings. i.e. Idiot-proof
+ * No changing of voltage / current. i.e. Idiot-proof
  * Simple frontend and backend design - only a single source
  * Single binary output - all files embedded, no mucking around
 
@@ -55,6 +55,7 @@ curl -s localhost:8000/device/Dev1/toggle/false
 Assuming Node.js and Rust are installed
 ```
   npm install
+  npm run build
   cargo build --release
 ```
 

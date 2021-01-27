@@ -9,7 +9,8 @@ import TableContainer from '@material-ui/core/TableContainer';
 import Paper from '@material-ui/core/Paper';
 import { useState, useEffect } from 'react';
 import AppBar from '@material-ui/core/AppBar';
-import { CircularProgress, Toolbar } from '@material-ui/core';
+import CircularProgress from '@material-ui/core/CircularProgress';
+import Toolbar from '@material-ui/core/Toolbar';
 import './App.css';
 import Alert from '@material-ui/lab/Alert';
 
