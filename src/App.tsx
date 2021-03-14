@@ -130,9 +130,9 @@ function App() {
                     <TableCell component="th" scope="row">{key}</TableCell>
                     <TableCell>{value.voltage.toFixed(3)}</TableCell>
                     <TableCell>{value.current.toFixed(3)}</TableCell>
-                    <TableCell>{value.error &&
-                      <Alert variant="filled" severity="error" style={{width:"max-content"}}>Last Update Failed</Alert>
-                      || <PowerButton DevName={key} PowerState={value.power} updateData={updateData}></PowerButton>}</TableCell>
+                    <TableCell>{value.error ?
+                      <Alert variant="filled" severity="error" style={{ width: "max-content" }}>Last Update Failed</Alert>
+                      : <PowerButton DevName={key} PowerState={value.power} updateData={updateData}></PowerButton>}</TableCell>
                   </TableRow>
                 )}
             </TableBody>

@@ -35,7 +35,7 @@ struct Device {
 
 impl Device {
     fn update_state(&mut self) -> anyhow::Result<DeviceState> {
-        debug!("Updating State: {:?}", self.state);
+        debug!("Updating state: {:?}", self.state);
         match self.connection.status() {
             Ok(status) => {
                 self.state.voltage = status.voltage;
@@ -178,7 +178,7 @@ async fn main() {
     }
 
     if opts.power_supplies.len() % 2 != 0 {
-        eprintln!("Input devices must be groups of two!");
+        error!("Input devices must be groups of two!");
         return;
     }
 
@@ -188,7 +188,7 @@ async fn main() {
     // Pass it to the updater thread
     {
         let dev_arc = current_devices.clone();
-        tokio::task::spawn_blocking(move || update_device_states(&dev_arc));
+        std::thread::spawn(move || update_device_states(&dev_arc));
     }
 
     {
@@ -197,11 +197,17 @@ async fn main() {
             let port = match ka3005p::Ka3005p::new(&chunk[1]) {
                 Ok(port) => port,
                 Err(e) => {
-                    eprintln!("Serial port failure: {}", e);
+                    error!("Serial port failure: {}", e);
                     return;
                 }
             };
-            debug!("Created Device: {:?}", chunk[0]);
+
+            if devlist.get(&chunk[0]).is_some() {
+                error!("Duplicate device name: {}", chunk[0]);
+                return;
+            }
+
+            debug!("Created device: {:?}", chunk[0]);
             devlist.insert(
                 chunk[0].to_string(),
                 Device {
