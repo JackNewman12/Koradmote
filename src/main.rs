@@ -120,10 +120,27 @@ fn update_device_states(devs: &DeviceList) {
     }
 }
 
+/// Print a list of ports that are probably power supplies
+fn find_devices() {
+    let ports: Vec<serialport::SerialPortInfo> = serialport::available_ports()
+    .expect("Could not search for serialports!")
+    .into_iter()
+    .filter(|info| match &info.port_type {
+        serialport::SerialPortType::UsbPort(usb) => usb.vid == 1046,
+        _ => false,
+    })
+    .collect();
+
+    println!("Devices that are most likely PSUs:");
+    for port in ports {
+        println!("{:?}", port);
+    }
+}
+
 #[derive(Clap, Debug)]
 struct Opts {
     /// List of power supples "Name" "Port" "Name" "Port"
-    #[clap(required(true))]
+    #[clap()]
     power_supplies: Vec<String>,
 
     /// A level of verbosity, and can be used multiple times
@@ -134,6 +151,12 @@ struct Opts {
 #[tokio::main]
 async fn main() {
     let opts: Opts = Opts::parse();
+
+    // Print any devices we can find for the user
+    if opts.power_supplies.len() == 0 {
+        find_devices();
+        return;
+    }
 
     // println!("{:?}", opts);
     if opts.power_supplies.len() % 2 != 0 {
