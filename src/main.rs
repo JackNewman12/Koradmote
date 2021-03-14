@@ -23,6 +23,7 @@ struct DeviceState {
     voltage: f32,
     current: f32,
     power: bool,
+    error: bool, // Last update from device failed
 }
 
 type DeviceList = Arc<Mutex<BTreeMap<String, Device>>>;
@@ -34,11 +35,19 @@ struct Device {
 
 impl Device {
     fn update_state(&mut self) -> anyhow::Result<DeviceState> {
-        let status = self.connection.status()?;
-        self.state.voltage = status.voltage;
-        self.state.current = status.current;
-        self.state.power = status.flags.output.into();
         debug!("Updating State: {:?}", self.state);
+        match self.connection.status() {
+            Ok(status) => {
+                self.state.voltage = status.voltage;
+                self.state.current = status.current;
+                self.state.power = status.flags.output.into();
+                self.state.error = false;
+            },
+            Err(e) => {
+                self.state.error = true;
+                return Err(e);
+            }
+        }
         Ok(self.state)
     }
 
@@ -179,7 +188,7 @@ async fn main() {
     // Pass it to the updater thread
     {
         let dev_arc = current_devices.clone();
-        std::thread::spawn(move || update_device_states(&dev_arc));
+        tokio::task::spawn_blocking(move || update_device_states(&dev_arc));
     }
 
     {
