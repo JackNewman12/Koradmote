@@ -60,3 +60,16 @@ Assuming Node.js and Rust are installed
 ```
 
 Note that the debug version of the binary will use the files in the `/build/` folder for faster development. The release build will embed the files inside the binary
+
+You can create some virtual serial ports on linux via:
+```
+sudo socat -d -d pty,link=/dev/ttyS0,raw,echo=0 pty,link=/dev/ttyS1,raw,echo=0
+```
+
+# Logging
+There are various logging levels implemented for this application:
+```
+LOG=DEBUG ./koradmote
+LOG=INFO ./koradmote
+LOG=OFF ./koradmote
+```
