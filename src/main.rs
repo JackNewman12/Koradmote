@@ -12,7 +12,6 @@ use std::sync::{Arc, Mutex};
 use rust_embed::RustEmbed;
 use warp::{reject::Reject, Filter};
 
-use pretty_env_logger;
 #[macro_use] extern crate log;
 
 #[derive(RustEmbed)]
