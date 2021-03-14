@@ -12,6 +12,9 @@ use std::sync::{Arc, Mutex};
 use rust_embed::RustEmbed;
 use warp::{reject::Reject, Filter};
 
+use pretty_env_logger;
+#[macro_use] extern crate log;
+
 #[derive(RustEmbed)]
 #[folder = "build/"]
 struct WebAssets;
@@ -36,12 +39,13 @@ impl Device {
         self.state.voltage = status.voltage;
         self.state.current = status.current;
         self.state.power = status.flags.output.into();
+        debug!("Updating State: {:?}", self.state);
         Ok(self.state)
     }
 
     fn set_power(&mut self, output: bool) -> anyhow::Result<DeviceState> {
         // Do what the user asked
-        println!("Setting power to {:?}", output);
+        info!("Setting power to {:?}", output);
         self.connection
             .execute(ka3005p::Command::Power(output.into()))?;
         // Update state to reflect all changes
@@ -70,6 +74,7 @@ async fn device(name: String, devs: DeviceList) -> Result<warp::reply::Json, war
 #[derive(Debug)]
 struct ToggleFailed;
 impl Reject for ToggleFailed {}
+
 async fn toggledevice(
     name: String,
     devs: DeviceList,
@@ -106,7 +111,7 @@ fn update_device_states(devs: &DeviceList) {
                 std::thread::spawn(move || {
                     match d.update_state() {
                         Ok(_) => {}
-                        Err(e) => println!("Update Failed - {} - {}", k, e),
+                        Err(e) => error!("Device '{}' - {}", k, e),
                     };
                     (k, d)
                 })
@@ -122,9 +127,11 @@ fn update_device_states(devs: &DeviceList) {
 
 /// Print a list of ports that are probably power supplies
 fn find_devices() {
-    let ports: Vec<serialport::SerialPortInfo> = serialport::available_ports()
-    .expect("Could not search for serialports!")
-    .into_iter()
+    let allports= serialport::available_ports()
+    .expect("Could not search for serialports!");
+    debug!("{:?}", allports);
+
+    let ports:Vec<serialport::SerialPortInfo> = allports.into_iter()
     .filter(|info| match &info.port_type {
         serialport::SerialPortType::UsbPort(usb) => usb.vid == 1046,
         _ => false,
@@ -142,15 +149,19 @@ struct Opts {
     /// List of power supples "Name" "Port" "Name" "Port"
     #[clap()]
     power_supplies: Vec<String>,
-
-    /// A level of verbosity, and can be used multiple times
-    #[clap(short, long, parse(from_occurrences))]
-    verbose: i32,
 }
 
 #[tokio::main]
 async fn main() {
+    // Setup logging
+    if std::env::var("LOG").is_err() {
+        std::env::set_var("LOG", "INFO");
+    }
+    pretty_env_logger::init_custom_env("LOG");
+
+    // Opts parsing
     let opts: Opts = Opts::parse();
+    debug!("{:?}", opts);
 
     // Print any devices we can find for the user
     if opts.power_supplies.len() == 0 {
@@ -158,7 +169,6 @@ async fn main() {
         return;
     }
 
-    // println!("{:?}", opts);
     if opts.power_supplies.len() % 2 != 0 {
         eprintln!("Input devices must be groups of two!");
         return;
@@ -183,7 +193,7 @@ async fn main() {
                     return;
                 }
             };
-
+            debug!("Created Device: {:?}", chunk[0]);
             devlist.insert(
                 chunk[0].to_string(),
                 Device {
@@ -192,9 +202,10 @@ async fn main() {
                 },
             );
         }
+
     }
 
-    //
+    // Create base route
     let route = warp::any()
         .and(warp_embed::embed(&WebAssets))
         .with(warp::compression::gzip());
