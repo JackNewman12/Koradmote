@@ -163,7 +163,7 @@ async fn main() {
     debug!("{:?}", opts);
 
     // Print any devices we can find for the user
-    if opts.power_supplies.len() == 0 {
+    if opts.power_supplies.is_empty() {
         find_devices();
         return;
     }
