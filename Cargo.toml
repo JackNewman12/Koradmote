@@ -1,10 +1,8 @@
-cargo-features = ["strip"]
-
 [package]
 name = "koradmote"
 version = "0.3.0"
 authors = ["Jack Newman <jack.newman12@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 [profile.release]
 lto = true
@@ -13,14 +11,14 @@ strip = "symbols"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-log = "0.4"
-pretty_env_logger = "0.4"
-anyhow = "1.0"
-serde = {version = "1.0", features = ["derive"]}
-serialport = "4.0"
-rust-embed = {version = "5.7", features = ["compression"]}
-clap = "3.0.0-beta.2"
+log = "0.4.17"
+pretty_env_logger = "0.4.0"
+anyhow = "1.0.65"
+serde = { version = "1.0.145", features = ["derive"] }
+serialport = "4.2.0"
+rust-embed = { version = "6.4.1", features = ["compression"] }
+clap = "~3.2.22"
 ka3005p = {git = "https://github.com/JackNewman12/ka3005p"}
-warp-embed = "0.3.0"
-warp = {version = "0.3", features=["compression"]}
-tokio = {version = "1.3", features = ["full"]}
+warp-embed = "0.4.0"
+warp = { version = "0.3.2", features = ["compression"] }
+tokio = { version = "1.21.1", features = ["full"] }

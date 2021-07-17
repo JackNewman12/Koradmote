@@ -1,9 +1,4 @@
-#![feature(decl_macro)]
-#![deny(
-    clippy::all,
-    clippy::pedantic,
-)]
-use clap::Clap;
+use clap::Parser;
 
 use serde::Serialize;
 use std::collections::BTreeMap;
@@ -112,7 +107,7 @@ fn update_device_states(devs: &DeviceList) {
     loop {
         std::thread::sleep(std::time::Duration::from_secs(1));
         let mut devices = devs.lock().unwrap();
-        let device_replace = std::mem::replace(&mut *devices, BTreeMap::new());
+        let device_replace = std::mem::take(&mut *devices);
         let update_threads: Vec<_> = device_replace
             .into_iter()
             .map(|(k, mut d)| {
@@ -152,7 +147,7 @@ fn find_devices() {
     }
 }
 
-#[derive(Clap, Debug)]
+#[derive(Parser, Debug)]
 struct Opts {
     /// List of power supples "Name" "Port" "Name" "Port"
     #[clap()]
