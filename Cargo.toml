@@ -21,6 +21,6 @@ serialport = "4.0.1"
 rust-embed = { version = "5.9.0", features = ["compression"] }
 clap = "3.0.0-beta.2"
 ka3005p = {git = "https://github.com/JackNewman12/ka3005p"}
-warp-embed = "0.3.0"
+warp-embed = "0.4.0"
 warp = { version = "0.3.1", features = ["compression"] }
 tokio = { version = "1.8.1", features = ["full"] }
