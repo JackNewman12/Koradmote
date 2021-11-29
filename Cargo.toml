@@ -18,7 +18,7 @@ pretty_env_logger = "0.4.0"
 anyhow = "1.0.42"
 serde = { version = "1.0.126", features = ["derive"] }
 serialport = "4.0.1"
-rust-embed = { version = "5.9.0", features = ["compression"] }
+rust-embed = { version = "6.3.0", features = ["compression"] }
 clap = "3.0.0-beta.2"
 ka3005p = {git = "https://github.com/JackNewman12/ka3005p"}
 warp-embed = "0.3.0"
