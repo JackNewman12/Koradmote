@@ -17,7 +17,7 @@ anyhow = "1.0.65"
 serde = { version = "1.0.145", features = ["derive"] }
 serialport = "4.2.0"
 rust-embed = { version = "6.4.1", features = ["compression"] }
-clap = "~3.2.22"
+clap = "~4.0.32"
 ka3005p = {git = "https://github.com/JackNewman12/ka3005p"}
 warp-embed = "0.4.0"
 warp = { version = "0.3.2", features = ["compression"] }
